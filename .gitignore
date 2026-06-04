@@ -1,0 +1,28 @@
+# OS/editor noise
+.DS_Store
+.idea/
+.vscode/
+
+# Python
+__pycache__/
+.pycache*/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+
+# Local environment and runtime configuration
+.env
+.env.*
+!.env.example
+
+# Logs and generated reports
+*.log
+papers/download_report.tsv
+
+# Local paper originals
+papers/pdfs/*
+!papers/pdfs/.gitkeep
+
+# Generated extraction assets. Recreate these by importing PDFs locally.
+web/libraries/**/papers/**/extracted/

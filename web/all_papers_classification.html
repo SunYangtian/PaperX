@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PaperX 论文库</title>
+  <link rel="icon" type="image/svg+xml" href="assets/Google_Scholar_logo.svg">
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <h1>PaperX 论文库</h1>
+      <p class="lead">此表格从当前 library 的 <code>papers.json</code> 动态生成。</p>
+      <div class="library-bar">
+        <label for="librarySelect">Library</label>
+        <select id="librarySelect" class="library-select"></select>
+      </div>
+      <nav class="nav">
+        <a id="homeLink" class="button" href="index.html">返回主页</a>
+        <a class="button primary" href="../papers/pdfs/">PDF 目录</a>
+      </nav>
+    </div>
+  </header>
+  <main>
+    <div class="wrap">
+      <section class="table-panel">
+        <table class="papers-table">
+          <thead>
+            <tr>
+              <th>论文</th>
+              <th>arXiv</th>
+              <th>状态</th>
+              <th>标签</th>
+              <th>更新时间</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="papersTableBody">
+            <tr>
+              <td colspan="6" class="empty-cell">正在加载论文列表...</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <div id="tableStatus" class="import-status note"></div>
+    </div>
+  </main>
+  <script>
+    (function () {
+      const ACTIVE_LIBRARY_KEY = "paper-active-library";
+      const params = new URLSearchParams(window.location.search);
+      const state = {
+        activeLibrary: params.get("library") || window.localStorage.getItem(ACTIVE_LIBRARY_KEY) || "default",
+        libraries: []
+      };
+      const body = document.getElementById("papersTableBody");
+      const status = document.getElementById("tableStatus");
+      const librarySelect = document.getElementById("librarySelect");
+      const homeLink = document.getElementById("homeLink");
+
+      function setStatus(message, isError) {
+        status.textContent = message || "";
+        status.classList.toggle("error", Boolean(isError));
+      }
+
+      function cell(text, className) {
+        const td = document.createElement("td");
+        if (className) {
+          td.className = className;
+        }
+        td.textContent = text || "";
+        return td;
+      }
+
+      function actionLink(label, href) {
+        const link = document.createElement("a");
+        link.className = "button slim";
+        link.href = href;
+        link.textContent = label;
+        return link;
+      }
+
+      function actionButton(label, className) {
+        const button = document.createElement("button");
+        button.className = className || "button slim";
+        button.type = "button";
+        button.textContent = label;
+        return button;
+      }
+
+      function setActiveLibrary(library) {
+        state.activeLibrary = library || "default";
+        window.localStorage.setItem(ACTIVE_LIBRARY_KEY, state.activeLibrary);
+        const url = new URL(window.location.href);
+        url.searchParams.set("library", state.activeLibrary);
+        window.history.replaceState({}, "", url);
+        homeLink.href = "index.html?library=" + encodeURIComponent(state.activeLibrary);
+      }
+
+      async function loadLibraries() {
+        const response = await fetch("/api/libraries", { cache: "no-cache" });
+        if (!response.ok) {
+          throw new Error("无法加载 library 列表");
+        }
+        const data = await response.json();
+        state.libraries = Array.isArray(data.libraries) ? data.libraries : [{ id: "default", name: "Default" }];
+        if (!state.libraries.some((library) => library.id === state.activeLibrary)) {
+          state.activeLibrary = data.default || "default";
+        }
+        librarySelect.textContent = "";
+        state.libraries.forEach((library) => {
+          const option = document.createElement("option");
+          option.value = library.id;
+          option.textContent = library.name || library.id;
+          librarySelect.appendChild(option);
+        });
+        librarySelect.value = state.activeLibrary;
+        setActiveLibrary(state.activeLibrary);
+      }
+
+      function renderTags(tags) {
+        const td = document.createElement("td");
+        const list = Array.isArray(tags) && tags.length ? tags : ["untagged"];
+        list.slice(0, 5).forEach((tag) => {
+          const chip = document.createElement("span");
+          chip.className = "chip";
+          chip.textContent = tag;
+          td.appendChild(chip);
+        });
+        return td;
+      }
+
+      function renderRows(papers) {
+        body.textContent = "";
+        if (!papers.length) {
+          const row = document.createElement("tr");
+          row.appendChild(cell("当前论文库为空。", "empty-cell"));
+          row.firstChild.colSpan = 6;
+          body.appendChild(row);
+          return;
+        }
+
+        papers.forEach((paper) => {
+          const row = document.createElement("tr");
+
+          const title = document.createElement("td");
+          title.className = "title-cell";
+          const titleLink = document.createElement("a");
+          titleLink.href = "paper.html?library=" + encodeURIComponent(state.activeLibrary) + "&slug=" + encodeURIComponent(paper.slug);
+          titleLink.textContent = paper.title || paper.slug;
+          title.appendChild(titleLink);
+          const meta = document.createElement("div");
+          meta.className = "meta";
+          meta.textContent = paper.hash ? "hash " + paper.hash : paper.slug;
+          title.appendChild(meta);
+          row.appendChild(title);
+
+          row.appendChild(cell(paper.arxiv ? "arXiv " + paper.arxiv : "-"));
+          row.appendChild(cell(paper.status || "-"));
+          row.appendChild(renderTags(paper.tags));
+          row.appendChild(cell(paper.updated || "-"));
+
+          const actions = document.createElement("td");
+          actions.className = "table-actions";
+          actions.appendChild(actionLink("工作台", "paper.html?library=" + encodeURIComponent(state.activeLibrary) + "&slug=" + encodeURIComponent(paper.slug)));
+          if (paper.pdf) {
+            actions.appendChild(actionLink("PDF", paper.pdf));
+          }
+          const remove = actionButton("删除", "button slim danger");
+          remove.addEventListener("click", () => deletePaper(paper));
+          actions.appendChild(remove);
+          row.appendChild(actions);
+
+          body.appendChild(row);
+        });
+      }
+
+      async function loadPapers() {
+        const response = await fetch("libraries/" + encodeURIComponent(state.activeLibrary) + "/papers.json", { cache: "no-cache" });
+        if (!response.ok) {
+          throw new Error("无法加载当前 library 的 papers.json");
+        }
+        const papers = await response.json();
+        renderRows(papers);
+      }
+
+      async function deletePaper(paper) {
+        const title = paper.title || paper.slug;
+        if (!window.confirm("删除这篇文章及其本地文件？\n" + title)) {
+          return;
+        }
+        setStatus("正在删除：" + title, false);
+        try {
+          const response = await fetch("/api/papers/" + encodeURIComponent(paper.slug) + "?library=" + encodeURIComponent(state.activeLibrary), {
+            method: "DELETE"
+          });
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok) {
+            throw new Error(data.error || "删除失败");
+          }
+          setStatus("已删除：" + title, false);
+          await loadPapers();
+        } catch (error) {
+          setStatus(error.message, true);
+        }
+      }
+
+      librarySelect.addEventListener("change", () => {
+        setActiveLibrary(librarySelect.value);
+        loadPapers().catch((error) => setStatus(error.message, true));
+      });
+
+      loadLibraries().then(loadPapers).catch((error) => {
+          body.textContent = "";
+          const row = document.createElement("tr");
+          row.appendChild(cell(error.message, "empty-cell"));
+          row.firstChild.colSpan = 6;
+          body.appendChild(row);
+        });
+    })();
+  </script>
+</body>
+</html>

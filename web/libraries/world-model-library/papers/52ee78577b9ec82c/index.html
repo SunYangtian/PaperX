@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Matrix-Game 3.0 解读</title>
+  <link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <div class="meta">arXiv 2604.08995 · Matrix-Game 3.0</div>
+      <h1>Matrix-Game 3.0: Real-Time and Streaming Interactive World Model with Long-Horizon Memory</h1>
+      <p class="lead">本页整理 teacher/base model 训练、few-step distillation、camera-aware memory 机制，并链接到抽取文本和关键图页。</p>
+      <nav class="nav">
+        <a class="button" href="/index.html?library=world-model-library">返回索引</a>
+        <a class="button primary" href="/papers/pdfs/2604.08995_Matrix-Game_3.0_Real-Time_and_Streaming_Interactive_World_Model_with_Long-Horizon_Memory.pdf">打开 PDF</a>
+        <a class="button" href="analysis.md">analysis.md</a>
+      </nav>
+    </div>
+  </header>
+  <main>
+    <div class="wrap">
+      <section class="panel">
+        <h2>目录</h2>
+        <div class="toc">
+          <a href="#teacher">Teacher / Base Model 训练</a>
+          <a href="#distillation">Few-step Distillation</a>
+          <a href="#memory">Long-Horizon Memory</a>
+          <a href="#assets">抽取材料</a>
+        </div>
+      </section>
+
+      <section id="teacher" class="panel">
+        <h2>1. Teacher / Base Model 训练</h2>
+        <p>Matrix-Game 3.0 的 teacher 来自 <strong>memory-augmented bidirectional DiT base model</strong>。论文强调 teacher、critic、student 保持统一 bidirectional architecture，避免异构 student 带来的不稳定。</p>
+        <ul>
+          <li>5B base 基于 Wan2.2-TI2V-5B，action modules 集成在前 15 个 DiT blocks。</li>
+          <li>Interactive base training：80% 概率用 4 个 past-frame latents + 10 个 current-frame noisy latents；20% 退化为 action-conditioned I2V。</li>
+          <li>Error-aware training：维护 error buffer，把预测 residual 注入 history latent，模拟推理时 self-generated history 的误差。</li>
+          <li>Memory-augmented training：5 memory latents + 4 past latents + 10 noisy current latents 一起送入 DiT。</li>
+          <li>训练集约 4.8M video clips。</li>
+          <li>28B scale-up 中 high-noise model 负责 action control，low-noise model 负责视觉细节和泛化。</li>
+        </ul>
+        <figure>
+          <figcaption>Figure 3: error-aware interactive base model，把 past/current latents 和 action 共同建模，并收集/注入 error residual。</figcaption>
+        </figure>
+      </section>
+
+      <section id="distillation" class="panel">
+        <h2>2. Few-step Distillation / 实时化</h2>
+        <p>Distillation 阶段的重点是 <strong>training-inference aligned multi-segment rollout</strong>。Student 在训练中模拟真实 few-step streaming 推理，而不是只在单个窗口里用干净 GT history。</p>
+        <ul>
+          <li>Teacher、critic、student 都从 memory-augmented base model 初始化。</li>
+          <li>Cold-start：前 600 steps 使用 single-segment inference，past frames 用 ground truth，防止 few-step student 初期 collapse。</li>
+          <li>Multi-segment：之后 segment 数 k 从 1 到 6 随机采样，训练 2,400 steps。</li>
+          <li>当前 segment 的 past frames 来自上一 segment 的尾部。</li>
+          <li>Memory 从在线更新的 memory pool 中按当前 camera viewpoint 检索。</li>
+          <li>随机停止在某个 segment，把该 segment 送给 teacher 和 critic 做 DMD。</li>
+          <li>实时部署叠加 INT8 DiT、MG-LightVAE pruning 和 GPU memory retrieval，目标 720p@40FPS。</li>
+        </ul>
+        <figure>
+          <figcaption>Figure 6: bidirectional student 做 multi-segment rollouts，最终 segment 用于 distribution matching。</figcaption>
+        </figure>
+      </section>
+
+      <section id="memory" class="panel">
+        <h2>3. Long-Horizon Memory 机制</h2>
+        <p>Matrix-Game 3.0 的 memory 是显式 <strong>camera-aware retrieval</strong>，并把 memory、recent history、current noisy latents 放进同一个 DiT self-attention space。</p>
+        <ul>
+          <li>Memory 输入：5 memory latents、4 past-frame latents、10 current noisy latents。</li>
+          <li>Camera-aware retrieval：根据 camera pose 和 field-of-view overlap 检索 view-relevant history。</li>
+          <li>Relative Plucker-style geometry：编码 current target 与 selected memory 的相对 camera geometry。</li>
+          <li>Joint self-attention：不使用单独 memory branch，而是让 memory/history/current tokens 在同一个 DiT backbone 中交互。</li>
+          <li>Memory error injection：对 memory 和 history latents 同时注入 residual，训练模型从 imperfect memory 中恢复。</li>
+          <li>Temporal RoPE 改造：加入 original frame index，并用 head-wise perturbed RoPE base 减少远距离 memory 的周期 aliasing。</li>
+        </ul>
+        <div class="two-col">
+          <figure>
+            <figcaption>Figure 4/5: retrieved memory、past frames、current noisy frames 共同进入 DiT。</figcaption>
+          </figure>
+          <figure>
+            <figcaption>Figure 9: 场景重访实验，反向动作返回已访问区域，检验长程 memory。</figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section id="assets" class="panel">
+        <h2>抽取材料</h2>
+        <div class="chips">
+        </div>
+        <p class="note">本目录由 PyMuPDF 从 PDF 抽取：20 页文本、20 张页面渲染图、185 个嵌入图片。</p>
+      </section>
+    </div>
+  </main>
+</body>
+</html>

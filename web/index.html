@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PaperX</title>
+  <link rel="icon" type="image/svg+xml" href="assets/Google_Scholar_logo.svg">
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <h1>PaperX</h1>
+      <p class="lead">选择一个论文库，导入 PDF 或 arXiv 链接，然后在工作台中阅读和对话分析。</p>
+      <div class="library-bar">
+        <label for="librarySelect">Library</label>
+        <select id="librarySelect" class="library-select"></select>
+      </div>
+      <nav class="nav">
+        <a class="button primary" href="../papers/pdfs/">PDF 目录</a>
+        <a id="allPapersLink" class="button" href="all_papers_classification.html">全部论文表格</a>
+      </nav>
+      <form id="importPaperForm" class="import-bar">
+        <div class="import-input-wrap">
+          <input id="paperUrlInput" type="text" placeholder="Paste a PDF URL or arXiv abs URL, e.g. https://arxiv.org/abs/2604.04913">
+          <input id="paperFileInput" class="sr-only-input" type="file" accept="application/pdf,.pdf">
+          <label id="paperFileLabel" class="file-picker-button" for="paperFileInput">选择文件</label>
+        </div>
+        <button id="importPaperButton" class="button primary" type="submit">导入 PDF</button>
+      </form>
+      <div id="importStatus" class="import-status note"></div>
+    </div>
+  </header>
+  <main>
+    <div class="wrap">
+      <div class="section-head">
+        <h2>最近阅读</h2>
+        <a class="button slim" href="all_papers_classification.html">查看全部</a>
+      </div>
+      <section id="paperGrid" class="grid"></section>
+      <footer>
+        <p>维护约定：PDF 放在 <code>papers/pdfs/</code>；导入论文的解读、讨论和抽取资产放在 <code>web/libraries/&lt;library&gt;/papers/&lt;paper-hash&gt;/</code>，映射关系维护在对应 library 的 <code>papers.json</code>。</p>
+      </footer>
+    </div>
+  </main>
+  <script src="assets/index.js"></script>
+</body>
+</html>

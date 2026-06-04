@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PaperX</title>
+  <link rel="icon" type="image/svg+xml" href="assets/Google_Scholar_logo.svg">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+  <link rel="stylesheet" href="assets/style.css?v=20260603-qa-scroll-2">
+</head>
+<body class="paper-workspace">
+  <header class="workspace-header sr-only">
+    <div class="workspace-topbar">
+      <div>
+        <div id="paperMeta" class="meta">Paper workspace</div>
+        <h1 id="paperTitle">Loading paper...</h1>
+      </div>
+      <div class="workspace-actions">
+        <a class="icon-button" href="index.html" aria-label="返回索引">←</a>
+        <a id="openPdfLink" class="button primary" href="#" target="_blank" rel="noreferrer">PDF</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="workspace-main">
+    <section class="reader-shell" aria-label="Paper workspace">
+      <div class="pdf-pane">
+        <div class="pane-toolbar">
+          <div class="pdf-actions">
+            <a class="icon-button compact-icon" href="index.html" aria-label="返回索引">←</a>
+            <span id="pdfStatus" class="note">Loading</span>
+          </div>
+          <div class="pdf-controls">
+            <a id="openPdfInlineLink" class="button slim" href="#" target="_blank" rel="noreferrer">Open PDF</a>
+          </div>
+        </div>
+        <iframe id="pdfFrame" title="Paper PDF"></iframe>
+      </div>
+
+      <div id="paneSplitter" class="pane-splitter" role="separator" aria-orientation="vertical" aria-label="调整 PDF 和侧栏宽度"></div>
+
+      <aside class="side-panel" aria-label="Paper tools">
+        <div class="tabbar" role="tablist" aria-label="Paper tools tabs">
+          <button class="tab-button active" type="button" data-tab="assistant">Assistant</button>
+          <button class="tab-button" type="button" data-tab="analysis">Analysis</button>
+          <button class="tab-button" type="button" data-tab="similar">Similar</button>
+        </div>
+
+        <section class="tab-panel active" id="assistantPanel" data-panel="assistant">
+          <div id="contextStatus" class="chat-status note">正在加载材料</div>
+          <div id="chatThread" class="chat-thread" aria-live="polite"></div>
+          <form id="chatForm" class="composer">
+            <textarea id="chatInput" rows="2" placeholder="Ask about this paper" required></textarea>
+            <div class="composer-model-wrap">
+              <select id="modelSelect" class="composer-model" aria-label="Model">
+                <option value="qwen3.7-max[1M]">qwen3.7-max[1M]</option>
+                <option value="deepseek-v4-pro[1M]">deepseek-v4-pro[1M]</option>
+                <option value="claude-opus-4-6">claude-opus-4-6</option>
+                <option value="gpt-5.5">gpt-5.5</option>
+                <option value="gemini-3.1-pro-preview">gemini-3.1-pro-preview</option>
+                <option value="glm-5.1">glm-5.1</option>
+                <option value="kimi-k2.6">kimi-k2.6</option>
+                <option value="minimax-m2.7">minimax-m2.7</option>
+                <option value="qwen3-vl-plus">qwen3-vl-plus</option>
+                <option value="qwen3-vl-flash">qwen3-vl-flash</option>
+              </select>
+            </div>
+            <button id="sendButton" class="button primary" type="submit">Send</button>
+          </form>
+        </section>
+
+        <section class="tab-panel" id="analysisPanel" data-panel="analysis">
+          <div class="panel-head">
+            <div>
+              <strong>Analysis</strong>
+              <div id="analysisStatus" class="note">analysis.md</div>
+            </div>
+            <div class="panel-actions">
+              <button id="analysisGenerateButton" class="button slim" type="button">生成解析</button>
+              <button id="analysisEditButton" class="button slim" type="button">Edit</button>
+              <button id="analysisSaveButton" class="button slim primary" type="button" hidden>Save</button>
+              <button id="analysisCancelButton" class="button slim" type="button" hidden>Cancel</button>
+            </div>
+          </div>
+          <div id="analysisContent" class="analysis-view scroll-list">Loading analysis...</div>
+          <textarea id="analysisEditor" class="analysis-editor" spellcheck="false" hidden></textarea>
+        </section>
+
+        <section class="tab-panel" id="similarPanel" data-panel="similar">
+          <div class="panel-head">
+            <div>
+              <strong>Similar</strong>
+              <div class="note">按标签和论文描述做轻量推荐</div>
+            </div>
+          </div>
+          <div id="similarList" class="scroll-list"></div>
+        </section>
+      </aside>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/markdown-it@14.1.0/dist/markdown-it.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+  <script src="assets/paper_chat.js?v=20260603-qa-scroll-2"></script>
+</body>
+</html>

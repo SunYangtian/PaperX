@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lingbot-World 解读</title>
+  <link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <div class="meta">arXiv 2601.20540 · Lingbot-World</div>
+      <h1>Lingbot-World: Advancing Open-source World Models</h1>
+      <p class="lead">本页整理 teacher 训练流程、长视频蒸馏和 memory 机制，并链接到抽取文本、图页和讨论记录。</p>
+      <nav class="nav">
+        <a class="button" href="/index.html?library=world-model-library">返回索引</a>
+        <a class="button primary" href="/papers/pdfs/2601.20540_Lingbot-WorldAdvancing_Open-source_World_Models.pdf">打开 PDF</a>
+        <a class="button" href="analysis.md">analysis.md</a>
+      </nav>
+    </div>
+  </header>
+  <main>
+    <div class="wrap">
+      <section class="panel">
+        <h2>目录</h2>
+        <div class="toc">
+          <a href="#teacher">Teacher Model 训练流程</a>
+          <a href="#distillation">长视频蒸馏</a>
+          <a href="#memory">Memory 机制</a>
+          <a href="#action">Action 注入与交互</a>
+          <a href="#assets">抽取材料</a>
+        </div>
+      </section>
+
+      <section id="teacher" class="panel">
+        <h2>1. Teacher Model 训练流程</h2>
+        <p>Teacher 基本对应 Stage II 得到的 <strong>middle-trained MoE world model</strong>，也就是高质量但非实时的 LingBot-World-Base。</p>
+        <ul>
+          <li><strong>Stage I:</strong> 从 Wan2.2 14B image-to-video diffusion model 初始化，获得视频先验。</li>
+          <li><strong>Stage II:</strong> 训练成 28B MoE bidirectional world model。High-noise expert 负责全局结构，low-noise expert 负责细节。</li>
+          <li><strong>训练视频长度:</strong> curriculum 从 5 秒开始，逐步扩展到 60 秒。</li>
+          <li><strong>任务:</strong> 同时做 image-to-video 和 video-to-video continuation。</li>
+          <li><strong>Action finetuning:</strong> Plucker embedding + multi-hot action，经 AdaLN 注入 DiT block；冻结主干，只训练 action adapter。</li>
+        </ul>
+        <figure>
+          <figcaption>Figure 4: 三阶段训练流程。Stage II 是 teacher 的核心训练阶段，Stage III 负责实时化和蒸馏。</figcaption>
+        </figure>
+      </section>
+
+      <section id="distillation" class="panel">
+        <h2>2. 长视频蒸馏</h2>
+        <p>Stage III 把 bidirectional teacher 转成实时 autoregressive student，即 LingBot-World-Fast。</p>
+        <ul>
+          <li>Student 从 teacher 的 high-noise expert 初始化。</li>
+          <li>Full bidirectional temporal attention 改成 block causal attention：chunk 内双向，chunk 间因果。</li>
+          <li>使用 diffusion forcing：不同 chunk 可有独立 timestep，并选择少量 timestep 作为蒸馏目标。</li>
+          <li>Self-rollout extended horizon training 让 student 在自己的生成分布上训练，缓解 train-test gap。</li>
+          <li>DMD 使用 middle-trained MoE teacher 作为 real score model；fake score model 跟踪 student 分布。</li>
+          <li>额外 adversarial objective 用真实视频监督，补偿 DMD 和少步采样导致的画质差距。</li>
+        </ul>
+        <figure>
+          <figcaption>Figure 6: causal generator adaptation 和 DMD 里的 discriminator head。</figcaption>
+        </figure>
+      </section>
+
+      <section id="memory" class="panel">
+        <h2>3. Memory 机制</h2>
+        <p>Lingbot-World 的 memory 是 <strong>emergent memory</strong>，来自长上下文训练和 attention/KV cache，而不是显式外部记忆模块。</p>
+        <ul>
+          <li>训练上通过 5 秒到 60 秒 curriculum，让模型学习长时序一致性。</li>
+          <li>Video-to-video continuation 逼模型利用历史视频作为隐式状态。</li>
+          <li>Teacher 的 bidirectional attention 支撑全局依赖；Fast student 用 block causal attention 和 KV cache 保留历史 chunk。</li>
+          <li>示例中，landmarks 离开视野 60 秒后仍保持结构，桥和车辆在视野外仍有合理状态演化。</li>
+          <li>限制：论文明确承认 memory 不是 explicit storage module，长期仿真仍会 drifting。</li>
+        </ul>
+        <div class="two-col">
+          <figure>
+            <figcaption>Figure 12: emergent memory 能力示例。</figcaption>
+          </figure>
+          <figure>
+            <figcaption>Figure 13: 论文展示最长 10 分钟生成。</figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section id="action" class="panel">
+        <h2>4. Action 注入与交互实现</h2>
+        <p>Lingbot-World 不把动作写进文本 prompt，而是在 DiT block 内部加入独立的 action conditioning path。文本主要控制语义和外观，action 控制相机、移动和交互轨迹。</p>
+        <ul>
+          <li><strong>连续动作:</strong> camera rotation / 3D transformation 用 Plucker embeddings 表示。</li>
+          <li><strong>离散动作:</strong> W/A/S/D 等键盘输入编码为 multi-hot vector。</li>
+          <li><strong>融合:</strong> 连续动作和离散动作沿 channel dimension 拼接，形成 fused action embedding。</li>
+          <li><strong>注入:</strong> action embedding 通过 AdaLN 转成 scale/shift，调制 DiT block 内 video latent 的 normalized features。</li>
+          <li><strong>训练:</strong> 冻结主 DiT blocks，只训练 action adapter、action projection 和 AdaLN 参数。</li>
+          <li><strong>交互:</strong> 推理时每个 chunk 接收当前用户动作，结合历史 KV cache 生成下一段视频，再更新 cache 进入下一轮。</li>
+        </ul>
+        <figure>
+          <figcaption>Figure 5: action 经过 Plucker Encoder 后通过 AdaLN scale/shift 调制 video latent，文本条件则通过 cross-attention 接入。</figcaption>
+        </figure>
+      </section>
+
+      <section id="assets" class="panel">
+        <h2>抽取材料</h2>
+        <div class="chips">
+        </div>
+        <p class="note">本目录由 PyMuPDF 从 PDF 抽取：31 页文本、31 张页面渲染图、218 个嵌入图片。</p>
+      </section>
+    </div>
+  </main>
+</body>
+</html>

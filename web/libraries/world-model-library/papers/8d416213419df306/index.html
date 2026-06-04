@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>InSpatio-WorldFM 解读</title>
+  <link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <div class="meta">arXiv 2603.11911 · Real-Time Frame Model</div>
+      <h1>InSpatio-WorldFM: An Open-Source Real-Time Generative Frame Model</h1>
+      <p class="lead">本页整理 InSpatio-WorldFM 的 frame-based world model 路线、三阶段训练、PRoPE camera control、hybrid spatial memory 和 2-step DMD。</p>
+      <nav class="nav">
+        <a class="button" href="/index.html?library=world-model-library">返回索引</a>
+        <a class="button primary" href="/papers/pdfs/2603.11911_InSpatio-WorldFM_An_Open-Source_Real-Time_Generative_Frame_Model.pdf">打开 PDF</a>
+        <a class="button" href="analysis.md">analysis.md</a>
+      </nav>
+    </div>
+  </header>
+  <main>
+    <div class="wrap">
+      <section class="panel">
+        <h2>目录</h2>
+        <div class="toc">
+          <a href="#position">定位</a>
+          <a href="#training">训练流程</a>
+          <a href="#control">Camera Control</a>
+          <a href="#memory">Hybrid Spatial Memory</a>
+          <a href="#distillation">2-step DMD</a>
+          <a href="#limits">限制</a>
+          <a href="#assets">抽取材料</a>
+        </div>
+      </section>
+
+      <section id="position" class="panel">
+        <h2>1. 定位</h2>
+        <p>InSpatio-WorldFM 是 real-time generative frame model。它不按 video window 生成，而是每次独立生成目标视角单帧，用空间条件保持多视角一致性。</p>
+        <ul>
+          <li>目标：低延迟 real-time spatial inference。</li>
+          <li>核心条件：reference image、reference pose、target pose、target-view point cloud rendering。</li>
+          <li>核心取舍：减少视频窗口延迟，但牺牲一部分连续帧 temporal stability。</li>
+        </ul>
+        <figure>
+          <figcaption>Figure 2: offline multi-view observations / 3D anchors，online frame model 实时生成并更新 keyframes。</figcaption>
+        </figure>
+      </section>
+
+      <section id="training" class="panel">
+        <h2>2. 三阶段训练</h2>
+        <ul>
+          <li>Stage I Pre-training：选择 PixArt-Sigma 作为高效 text-to-image DiT backbone。</li>
+          <li>Stage II Middle-training：把 image generator 转成 controllable frame model with spatial memory。</li>
+          <li>Stage III Post-training：用 DMD 蒸馏成 few-step generator，支持 consumer-grade GPU 实时交互。</li>
+        </ul>
+        <p>训练 pair 来自 public videos、自采视频和 UE synthetic data。真实视频中随机采样 16 帧，4 帧作为 reference group 构建 global point cloud，12 帧作为 targets。合成数据提供精确 pose/depth，用于有限步 finetuning 提升几何稳定性。</p>
+      </section>
+
+      <section id="control" class="panel">
+        <h2>3. Camera Control / Action 注入</h2>
+        <p>这里的 action 是 user-defined camera motion / target pose，而不是键鼠离散动作。</p>
+        <ul>
+          <li>输入沿 width 拼接：noisy target latent、point cloud rendering、reference image。</li>
+          <li>三者经 shared patch embedding 进入 self-attention-only DiT。</li>
+          <li>Camera pose 注入比较了 Plucker ray、PRoPE、pure parametric injection。</li>
+          <li>最终采用 PRoPE，因为它直接调制 Q/K/V attention，而不是只做 additive embedding。</li>
+        </ul>
+        <figure>
+          <figcaption>Figure 3: 条件 novel-view synthesis pipeline 和 PRoPE-modulated self-attention。</figcaption>
+        </figure>
+      </section>
+
+      <section id="memory" class="panel">
+        <h2>4. Hybrid Spatial Memory</h2>
+        <p>Memory 由 explicit anchors 和 implicit memory 组成。</p>
+        <ul>
+          <li>Explicit anchor：target viewpoint 下的 point cloud rendering，提供 coarse 3D structure 和全局几何 prior。</li>
+          <li>Implicit memory：reference image + reference pose，提供 fine-grained appearance details。</li>
+          <li>两者都通过 self-attention 与 target latent 交互，不使用 cross-attention 分支。</li>
+          <li>训练时使用 progressive condition injection 和 random anchor masking，防止模型过度依赖 point cloud anchor。</li>
+        </ul>
+      </section>
+
+      <section id="distillation" class="panel">
+        <h2>5. 2-step DMD</h2>
+        <p>Post-training 用 DMD 把 middle-trained multi-step frame model 蒸馏成 few-step generator。</p>
+        <ul>
+          <li>Frozen base model 估计 real score。</li>
+          <li>Dynamically-updated model 在 generator outputs 上训练，估计 fake score。</li>
+          <li>Score difference 更新 generator，并用 base deterministic sampler 的 noise-image pairs 加 regression loss 稳定训练。</li>
+          <li>2-step 优于 1-step：第一步建立 coarse spatial structure，第二步恢复 fine details。</li>
+          <li>1000-step schedule 下，最佳中间点为 <code>t_mid=200</code>。</li>
+          <li>512x512：H-series GPU 约 25 FPS，RTX 4090 约 10 FPS。</li>
+        </ul>
+        <figure>
+          <figcaption>Figure 8: distilled frame model 在不同观察距离下保持细节一致。</figcaption>
+        </figure>
+      </section>
+
+      <section id="limits" class="panel">
+        <h2>6. 限制</h2>
+        <ul>
+          <li>动态内容生成仍不稳定。</li>
+          <li>历史 memory 依赖 offline multi-view / panorama observations，在线扩展范围有限。</li>
+          <li>单帧生成缺少连续帧 temporal constraint，交互时可能出现 frame jitter。</li>
+        </ul>
+      </section>
+
+      <section id="assets" class="panel">
+        <h2>抽取材料</h2>
+        <div class="chips">
+        </div>
+        <p class="note">本目录由 PyMuPDF 从 PDF 抽取：17 页文本、17 张页面渲染图、205 个嵌入图片。抽取时出现 ICC profile 警告，不影响文本和页面图。</p>
+      </section>
+    </div>
+  </main>
+</body>
+</html>

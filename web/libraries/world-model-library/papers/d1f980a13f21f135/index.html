@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HY-World 1.5 解读</title>
+  <link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <div class="meta">HY-World 1.5 · WorldPlay</div>
+      <h1>HY-World 1.5: A Systematic Framework for Interactive World Modeling with Real-Time Latency and Geometric Consistency</h1>
+      <p class="lead">本页整理 WorldPlay 的 teacher/base model 训练、Context Forcing 蒸馏、Dual Action Representation 和 Reconstituted Context Memory。</p>
+      <nav class="nav">
+        <a class="button" href="/index.html?library=world-model-library">返回索引</a>
+        <a class="button primary" href="/papers/pdfs/pdf_HY-World_1.5_A_Systematic_Framework_for_Interactive_World_Modeling_with_Real-Time_Latency_and_Geometric_Consistency.pdf">打开 PDF</a>
+        <a class="button" href="analysis.md">analysis.md</a>
+      </nav>
+    </div>
+  </header>
+  <main>
+    <div class="wrap">
+      <section class="panel">
+        <h2>目录</h2>
+        <div class="toc">
+          <a href="#teacher">Teacher / Base Model 训练</a>
+          <a href="#distillation">Context Forcing 蒸馏</a>
+          <a href="#action">Action 注入机制</a>
+          <a href="#memory">Memory 机制</a>
+          <a href="#assets">抽取材料</a>
+        </div>
+      </section>
+
+      <section id="teacher" class="panel">
+        <h2>1. Teacher / Base Model 训练</h2>
+        <p>HY-World 1.5 使用 WorldPlay 作为实时交互世界模型。起点是一个 bidirectional video diffusion model，随后被改造成 chunk-wise autoregressive diffusion model，用于 next chunk prediction。</p>
+        <ul>
+          <li>训练数据为 320K curated video clips：170K AAA games、60K real-world 3D、50K synthetic 4D、40K real-world video。</li>
+          <li>标注包括 text captions、continuous camera poses 和 discrete action signals。</li>
+          <li>基础视频模型使用 3D VAE + DiT，在 latent space 里用 flow matching 训练。</li>
+          <li>AR 改造：1 chunk = 4 latents = 16 frames；训练时不同 chunk 加不同噪声，self-attention 改为 block-causal。</li>
+          <li>Middle-training 将 Dual Action Representation 和 Reconstituted Context Memory 接入 AR diffusion model。</li>
+          <li>WorldCompass RL post-training 进一步强化动作跟随和视觉质量。</li>
+        </ul>
+        <div class="two-col">
+          <figure>
+            <figcaption>Figure 2: 数据、训练、蒸馏、RL 和 streaming inference 的整体流程。</figcaption>
+          </figure>
+          <figure>
+            <figcaption>Figure 4/5: WorldPlay 按 16-frame chunk 自回归生成，并在 DiT 中注入 action 与 memory。</figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section id="distillation" class="panel">
+        <h2>2. Student 蒸馏：Context Forcing</h2>
+        <p>Context Forcing 解决的是 memory-aware distillation 中的条件分布错位：bidirectional teacher 和 autoregressive student 如果看到不同 memory context，普通 DMD 的 score 监督会失效。</p>
+        <ul>
+          <li>Student self-rollout 4 chunks，每个 chunk 生成前都从已知历史中重构 memory context。</li>
+          <li>Teacher 是 memory-augmented bidirectional video diffusion model。</li>
+          <li>Teacher context 由 student rollout 对应的 memory context 构造，但 mask 掉当前要监督的 4 个 chunks。</li>
+          <li>这样 teacher/student 都在尽量一致的 memory 条件下计算 distribution matching loss。</li>
+          <li>蒸馏后支持 4 denoising steps，同时保持 long-term consistency 并减少 error accumulation。</li>
+          <li>最终系统报告可进行 24 FPS long-horizon streaming generation。</li>
+        </ul>
+        <figure>
+          <figcaption>Figure 7: student 做 memory-augmented self-rollout，teacher 用对齐后的 memory context 提供 real/fake score。</figcaption>
+        </figure>
+      </section>
+
+      <section id="action" class="panel">
+        <h2>3. Action 注入机制</h2>
+        <p>HY-World 1.5 使用 Dual Action Representation，把离散键鼠信号和连续 camera pose 同时注入模型。</p>
+        <ul>
+          <li>Discrete action：keyboard / mouse inputs 先编码为 action embedding，再经 zero-initialized MLP 投影到 timestep embedding，用于调制 DiT blocks。</li>
+          <li>Continuous pose：rotation / translation matrix 通过 PRoPE 注入 self-attention。</li>
+          <li>PRoPE 使用由 camera intrinsics / extrinsics 派生的 <code>Dproj</code>，增加一个 projective attention 分支。</li>
+          <li>每个 self-attention block 的输出是原始 3D RoPE attention 加上 zero-init 的 projective attention。</li>
+          <li>离散动作提供跨场景尺度的鲁棒控制；连续 pose 提供精确空间定位，并服务于 spatial memory retrieval。</li>
+        </ul>
+      </section>
+
+      <section id="memory" class="panel">
+        <h2>4. Memory 机制</h2>
+        <p>Reconstituted Context Memory 在每次生成新 chunk 时动态重建 context，而不是把全部历史帧都送进模型。</p>
+        <ul>
+          <li>Temporal memory：最近 <code>L</code> 个 chunks，用于短期运动平滑。</li>
+          <li>Spatial memory：从非相邻历史帧中采样，用于重访旧区域时保持几何和外观一致。</li>
+          <li>Spatial retrieval 使用 geometric relevance score，结合 FOV overlap 和 camera distance。</li>
+          <li>Temporal Reframing 会丢弃真实绝对时间 index，重新分配 positional encoding，把几何相关的长程 memory 在 RoPE 距离上拉近。</li>
+          <li>推理阶段继续逐 chunk 重构 memory，并用 KV cache 减少重复计算。</li>
+        </ul>
+        <figure>
+          <figcaption>Figure 6: 全上下文不可扩展，绝对时间 index 会弱化远程 memory；relative/temporal reframing 将相关 memory 拉近。</figcaption>
+        </figure>
+      </section>
+
+      <section id="assets" class="panel">
+        <h2>抽取材料</h2>
+        <div class="chips">
+        </div>
+        <p class="note">本目录由 PyMuPDF 从 PDF 抽取：20 页文本、20 张页面渲染图、144 个嵌入图片。</p>
+      </section>
+    </div>
+  </main>
+</body>
+</html>
