@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NeoVerse 解读</title>
+  <link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <div class="meta">arXiv 2601.00393 · 4D World Model</div>
+      <h1>NeoVerse: Enhancing 4D World Model with in-the-wild Monocular Videos</h1>
+      <p class="lead">本页整理 NeoVerse 的 pose-free 4DGS reconstruction、monocular degradation simulation、reconstruction-guided video generation、camera control 和显式 4D memory。</p>
+      <nav class="nav">
+        <a class="button" href="/index.html?library=world-model-library">返回索引</a>
+        <a class="button primary" href="/papers/pdfs/2601.00393_NeoVerse_Enhancing_4D_World_Model_with_in-the-wild_Monocular_Videos.pdf">打开 PDF</a>
+        <a class="button" href="analysis.md">analysis.md</a>
+      </nav>
+    </div>
+  </header>
+  <main>
+    <div class="wrap">
+      <section class="panel">
+        <h2>目录</h2>
+        <div class="toc">
+          <a href="#position">定位</a>
+          <a href="#reconstruction">4DGS Reconstruction</a>
+          <a href="#generation">Video Generation</a>
+          <a href="#training">训练流程</a>
+          <a href="#memory">Memory / Control</a>
+          <a href="#distillation">蒸馏与加速</a>
+          <a href="#assets">抽取材料</a>
+        </div>
+      </section>
+
+      <section id="position" class="panel">
+        <h2>1. 定位</h2>
+        <p>NeoVerse 是 reconstruction + generation 混合式 4D world model。它从野外单目视频中重建 4DGS，再把 4DGS 在 novel trajectory 下渲染成 degraded conditions，交给视频生成模型修复和补全。</p>
+        <ul>
+          <li>核心目标：让 4D world model 能利用大规模 in-the-wild monocular videos。</li>
+          <li>核心表示：dynamic 4D Gaussians。</li>
+          <li>核心生成方式：degraded rendering conditioned video generation。</li>
+        </ul>
+        <figure>
+          <figcaption>Figure 1: 单目视频到 dynamic 4D Gaussians，再渲染 degraded conditions 并生成 novel video。</figcaption>
+        </figure>
+      </section>
+
+      <section id="reconstruction" class="panel">
+        <h2>2. Pose-Free Feed-Forward 4DGS Reconstruction</h2>
+        <p>重建模型基于 VGGT，加入 bidirectional motion-encoding branch，并直接预测 4D Gaussian attributes。</p>
+        <ul>
+          <li>每个 Gaussian 包含 position、opacity、rotation、scale、SH、lifespan、forward/backward velocity 和 angular velocity。</li>
+          <li>Forward branch 建模 <code>t -> t+1</code>，backward branch 建模 <code>t -> t-1</code>。</li>
+          <li>训练时只输入 sparse keyframes，但用 bidirectional motion 插值 non-keyframes 并监督全部帧。</li>
+          <li>损失包括 RGB、camera、depth、motion 和 opacity regularization。</li>
+        </ul>
+      </section>
+
+      <section id="generation" class="panel">
+        <h2>3. Reconstruction-Guided Video Generation</h2>
+        <p>NeoVerse 用 Wan-T2V 14B + Rectified Flow 做视频生成。4DGS 渲染结果作为 control condition，原始视频作为 target。</p>
+        <ul>
+          <li>Degraded conditions 包括 RGB renderings、depth maps、binary masks 和 Plucker embeddings。</li>
+          <li>Conditions 通过 control branch 注入视频生成模型。</li>
+          <li>训练时冻结视频生成主干，只训练 control branch。</li>
+          <li>目标是让模型从低质量 novel-view rendering 中恢复高质量、时空一致的视频。</li>
+        </ul>
+        <figure>
+          <figcaption>Figure 2/3: 4DGS 重建器、degraded rendering condition 和视频生成 control branch。</figcaption>
+        </figure>
+      </section>
+
+      <section id="training" class="panel">
+        <h2>4. 训练流程</h2>
+        <ul>
+          <li>Reconstruction training：输入最长边 560；每次采样 <code>2 <= N <= 8</code> keyframes 和中间 target frames。</li>
+          <li>Generation training：固定分辨率 <code>336 x 560</code>，长度 <code>81 frames</code>。</li>
+          <li>每个 video clip 随机采样 <code>11 ~ 21</code> keyframes 做 on-the-fly 4DGS reconstruction。</li>
+          <li>使用 32 张 A800；reconstruction 150K iterations，generation 50K iterations。</li>
+          <li>数据包括 18 个公开数据源，以及超过 1M 自收集 monocular videos。</li>
+        </ul>
+      </section>
+
+      <section id="memory" class="panel">
+        <h2>5. Memory / Camera Control</h2>
+        <p>NeoVerse 的 memory 是显式 4D representation，而不是 Transformer memory tokens。</p>
+        <ul>
+          <li>4DGS 保存 scene geometry、appearance 和 motion。</li>
+          <li>推理时可用 global motion tracking 分离 static / dynamic Gaussians。</li>
+          <li>Static part 跨全部帧聚合，dynamic part 只聚合附近帧，避免 motion drift。</li>
+          <li>Camera control 来自 novel trajectory 下的 4DGS rendering 和 Plucker camera condition。</li>
+        </ul>
+      </section>
+
+      <section id="distillation" class="panel">
+        <h2>6. 蒸馏与加速</h2>
+        <p>NeoVerse 没有提出自己的 DMD teacher-student 蒸馏流程。它的生成训练冻结 Wan-T2V 主干、只训练 control branch，因此可以兼容现成 video diffusion distillation LoRA 来加速生成。</p>
+        <ul>
+          <li>主要贡献不是 distillation，而是 scalable monocular-video training pipeline。</li>
+          <li>可把 Wan-T2V 14B 视为冻结 base generator。</li>
+          <li>Control branch 设计让模型能复用外部加速 LoRA。</li>
+        </ul>
+        <figure>
+          <figcaption>Figure 4 / Table 3 / Table 4: novel-view generation 对比、runtime 和 ablation。</figcaption>
+        </figure>
+      </section>
+
+      <section id="assets" class="panel">
+        <h2>抽取材料</h2>
+        <div class="chips">
+        </div>
+        <p class="note">本目录由 PyMuPDF 从 PDF 抽取：15 页文本、15 张页面渲染图、205 个嵌入图片。</p>
+      </section>
+    </div>
+  </main>
+</body>
+</html>

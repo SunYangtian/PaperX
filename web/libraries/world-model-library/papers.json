@@ -1,0 +1,647 @@
+[
+  {
+    "slug": "661d967e4292d3d0",
+    "hash": "661d967e4292d3d0",
+    "library": "world-model-library",
+    "title": "WorldPlay: Towards Long-Term Geometric Consistency for Real-Time Interactive World Modeling",
+    "arxiv": "2512.14614v2",
+    "pdf": "../papers/pdfs/2512.14614v2.pdf",
+    "page": "libraries/world-model-library/papers/661d967e4292d3d0/index.html",
+    "status": "imported",
+    "tags": [
+      "world model",
+      "memory",
+      "video",
+      "interactive"
+    ],
+    "updated": "2026-06-10",
+    "summary": "Imported from a user-provided PDF or arXiv URL.",
+    "source_url": "https://arxiv.org/abs/2512.14614v2",
+    "pdf_url": "https://arxiv.org/pdf/2512.14614v2.pdf"
+  },
+  {
+    "slug": "daa48b9d3aeadd39",
+    "hash": "daa48b9d3aeadd39",
+    "library": "world-model-library",
+    "title": "URoPE: Universal Relative Position Embedding across Geometric Spaces",
+    "arxiv": "2604.18747",
+    "pdf": "../papers/pdfs/2604.18747.pdf",
+    "page": "libraries/world-model-library/papers/daa48b9d3aeadd39/index.html",
+    "status": "imported",
+    "tags": [
+      "world model",
+      "memory",
+      "video",
+      "dataset"
+    ],
+    "updated": "2026-06-10",
+    "summary": "Imported from a user-provided PDF or arXiv URL.",
+    "source_url": "https://arxiv.org/pdf/2604.18747",
+    "pdf_url": "https://arxiv.org/pdf/2604.18747.pdf"
+  },
+  {
+    "slug": "0c275ad5c5c40182",
+    "hash": "0c275ad5c5c40182",
+    "library": "world-model-library",
+    "title": "Text-to-3D by Stitching a Multi-view Reconstruction Network to a Video Generator",
+    "arxiv": "2510.13454v2",
+    "pdf": "../papers/pdfs/2510.13454v2.pdf",
+    "page": "libraries/world-model-library/papers/0c275ad5c5c40182/index.html",
+    "status": "imported",
+    "tags": [
+      "memory",
+      "video",
+      "interactive",
+      "game"
+    ],
+    "updated": "2026-06-09",
+    "summary": "Imported from a user-provided PDF or arXiv URL.",
+    "source_url": "https://arxiv.org/abs/2510.13454v2",
+    "pdf_url": "https://arxiv.org/pdf/2510.13454v2.pdf"
+  },
+  {
+    "slug": "ad2dbf2d0f2ae86c",
+    "hash": "ad2dbf2d0f2ae86c",
+    "library": "world-model-library",
+    "title": "PointWorld: Scaling 3D World Models for In-The-Wild Robotic Manipulation",
+    "arxiv": "2601.03782",
+    "pdf": "../papers/pdfs/2601.03782.pdf",
+    "page": "libraries/world-model-library/papers/ad2dbf2d0f2ae86c/index.html",
+    "status": "imported",
+    "tags": [
+      "world model",
+      "memory",
+      "video",
+      "interactive"
+    ],
+    "updated": "2026-06-08",
+    "summary": "Imported from a user-provided PDF or arXiv URL.",
+    "source_url": "https://arxiv.org/abs/2601.03782",
+    "pdf_url": "https://arxiv.org/pdf/2601.03782.pdf"
+  },
+  {
+    "slug": "6ca2c0108a3a4d89",
+    "hash": "6ca2c0108a3a4d89",
+    "library": "world-model-library",
+    "title": "ChordEdit: One-Step Low-Energy Transport for Image Editing",
+    "arxiv": "2602.19083",
+    "pdf": "../papers/pdfs/2602.19083.pdf",
+    "page": "libraries/world-model-library/papers/6ca2c0108a3a4d89/index.html",
+    "status": "imported",
+    "tags": [
+      "memory",
+      "dataset",
+      "benchmark",
+      "diffusion"
+    ],
+    "updated": "2026-06-06",
+    "summary": "Imported from a user-provided PDF or arXiv URL.",
+    "source_url": "https://arxiv.org/pdf/2602.19083",
+    "pdf_url": "https://arxiv.org/pdf/2602.19083.pdf"
+  },
+  {
+    "slug": "3e1beab6f49fc598",
+    "hash": "3e1beab6f49fc598",
+    "library": "world-model-library",
+    "title": "HY-World 2.0: A Multi-Modal World Model for Reconstructing, Generating, and Simulating 3D Worlds",
+    "arxiv": "2604.14268",
+    "pdf": "../papers/pdfs/2604.14268.pdf",
+    "page": "libraries/world-model-library/papers/3e1beab6f49fc598/index.html",
+    "status": "imported",
+    "tags": [
+      "world model",
+      "memory",
+      "video",
+      "interactive"
+    ],
+    "updated": "2026-06-05",
+    "summary": "Imported from a user-provided PDF or arXiv URL.",
+    "source_url": "https://arxiv.org/abs/2604.14268",
+    "pdf_url": "https://arxiv.org/pdf/2604.14268.pdf"
+  },
+  {
+    "slug": "b0cd3f3775babdfe",
+    "hash": "b0cd3f3775babdfe",
+    "library": "world-model-library",
+    "title": "World-Language-Action Model for Unified World Modeling, Language Reasoning, and Action Synthesis",
+    "arxiv": "2606.05979",
+    "pdf": "../papers/pdfs/2606.05979.pdf",
+    "page": "libraries/world-model-library/papers/b0cd3f3775babdfe/index.html",
+    "status": "imported",
+    "tags": [
+      "world model",
+      "memory",
+      "video",
+      "interactive"
+    ],
+    "updated": "2026-06-05",
+    "summary": "Imported from a user-provided PDF or arXiv URL.",
+    "source_url": "https://arxiv.org/abs/2606.05979",
+    "pdf_url": "https://arxiv.org/pdf/2606.05979.pdf"
+  },
+  {
+    "slug": "69d4f0139ad27781",
+    "hash": "69d4f0139ad27781",
+    "library": "world-model-library",
+    "title": "Echo-Infinity: Learning Evolving Memory for Real-Time Infinite Video Generation",
+    "arxiv": "2606.04527",
+    "pdf": "../papers/pdfs/2606.04527.pdf",
+    "page": "libraries/world-model-library/papers/69d4f0139ad27781/index.html",
+    "status": "imported",
+    "tags": [
+      "memory",
+      "video",
+      "interactive",
+      "dataset"
+    ],
+    "updated": "2026-06-05",
+    "summary": "Imported from a user-provided PDF or arXiv URL.",
+    "source_url": "https://arxiv.org/abs/2606.04527",
+    "pdf_url": "https://arxiv.org/pdf/2606.04527.pdf"
+  },
+  {
+    "slug": "c1e56b91f8bb9a46",
+    "hash": "c1e56b91f8bb9a46",
+    "title": "LayerPano3D: Layered 3D Panorama for Hyper-Immersive Scene Generation",
+    "arxiv": "2408.13252v2",
+    "pdf": "../papers/pdfs/2408.13252v2.pdf",
+    "page": "libraries/world-model-library/papers/c1e56b91f8bb9a46/index.html",
+    "status": "imported",
+    "tags": [
+      "memory",
+      "video",
+      "dataset",
+      "diffusion"
+    ],
+    "updated": "2026-06-03",
+    "summary": "Imported from a user-provided PDF or arXiv URL.",
+    "source_url": "https://arxiv.org/pdf/2408.13252v2",
+    "pdf_url": "https://arxiv.org/pdf/2408.13252v2.pdf",
+    "library": "world-model-library"
+  },
+  {
+    "slug": "5aeeb5101d0680f7",
+    "hash": "5aeeb5101d0680f7",
+    "title": "An Image is Worth 32 Tokens for Reconstruction and Generation",
+    "arxiv": "2406.07550",
+    "pdf": "../papers/pdfs/2406.07550.pdf",
+    "page": "libraries/world-model-library/papers/5aeeb5101d0680f7/index.html",
+    "status": "imported",
+    "tags": [
+      "video",
+      "dataset",
+      "benchmark",
+      "diffusion"
+    ],
+    "updated": "2026-06-02",
+    "summary": "Imported from a user-provided PDF or arXiv URL.",
+    "source_url": "https://arxiv.org/pdf/2406.07550",
+    "pdf_url": "https://arxiv.org/pdf/2406.07550.pdf",
+    "library": "world-model-library"
+  },
+  {
+    "slug": "46ce269a9c2dfce3",
+    "hash": "46ce269a9c2dfce3",
+    "title": "FlexTok: Resampling Images into 1D Token Sequences of Flexible Length",
+    "arxiv": "2502.13967",
+    "pdf": "../papers/pdfs/2502.13967.pdf",
+    "page": "libraries/world-model-library/papers/46ce269a9c2dfce3/index.html",
+    "status": "imported",
+    "tags": [
+      "world model",
+      "video",
+      "dataset",
+      "diffusion"
+    ],
+    "updated": "2026-06-02",
+    "summary": "Imported from a user-provided PDF or arXiv URL.",
+    "source_url": "https://arxiv.org/pdf/2502.13967",
+    "pdf_url": "https://arxiv.org/pdf/2502.13967.pdf",
+    "library": "world-model-library"
+  },
+  {
+    "slug": "a9d23f33e090580b",
+    "hash": "a9d23f33e090580b",
+    "title": "Decoupled DMD: CFG Augmentation as the Spear, Distribution Matching as the Shield",
+    "arxiv": "2511.22677",
+    "pdf": "../papers/pdfs/2511.22677.pdf",
+    "page": "libraries/world-model-library/papers/a9d23f33e090580b/index.html",
+    "status": "imported",
+    "tags": [
+      "video",
+      "benchmark",
+      "diffusion",
+      "3D"
+    ],
+    "updated": "2026-06-02",
+    "summary": "Imported from a user-provided PDF or arXiv URL.",
+    "source_url": "https://arxiv.org/abs/2511.22677",
+    "pdf_url": "https://arxiv.org/pdf/2511.22677.pdf",
+    "library": "world-model-library"
+  },
+  {
+    "slug": "fe1deaf17d300d17",
+    "hash": "fe1deaf17d300d17",
+    "title": "Cosmos World Foundation Model Platform for Physical AI",
+    "arxiv": "",
+    "pdf": "../papers/pdfs/technical-report.pdf",
+    "page": "libraries/world-model-library/papers/fe1deaf17d300d17/index.html",
+    "status": "imported",
+    "tags": [
+      "world model",
+      "memory",
+      "video",
+      "interactive"
+    ],
+    "updated": "2026-06-01",
+    "summary": "Imported from a user-provided PDF or arXiv URL.",
+    "source_url": "https://research.nvidia.com/labs/cosmos-lab/cosmos3/technical-report.pdf",
+    "pdf_url": "https://research.nvidia.com/labs/cosmos-lab/cosmos3/technical-report.pdf",
+    "library": "world-model-library"
+  },
+  {
+    "slug": "ac519bcaaad0823a",
+    "hash": "ac519bcaaad0823a",
+    "title": "Representation Forcing for Bottleneck-Free Unified Multimodal Models",
+    "arxiv": "2605.31604",
+    "pdf": "../papers/pdfs/2605.31604.pdf",
+    "page": "libraries/world-model-library/papers/ac519bcaaad0823a/index.html",
+    "status": "imported",
+    "tags": [
+      "world model",
+      "video",
+      "dataset",
+      "benchmark"
+    ],
+    "updated": "2026-06-01",
+    "summary": "Imported from a user-provided PDF or arXiv URL.",
+    "source_url": "https://arxiv.org/abs/2605.31604",
+    "pdf_url": "https://arxiv.org/pdf/2605.31604.pdf",
+    "library": "world-model-library"
+  },
+  {
+    "slug": "65db0cea8552a793",
+    "hash": "65db0cea8552a793",
+    "title": "Gamma-World: Generative Multi-Agent World Modeling Beyond Two Players",
+    "arxiv": "2605.28816",
+    "pdf": "../papers/pdfs/2605.28816.pdf",
+    "page": "libraries/world-model-library/papers/65db0cea8552a793/index.html",
+    "status": "imported",
+    "tags": [
+      "world model",
+      "memory",
+      "video",
+      "interactive"
+    ],
+    "updated": "2026-05-30",
+    "summary": "Imported from a user-provided PDF or arXiv URL.",
+    "source_url": "https://arxiv.org/abs/2605.28816",
+    "pdf_url": "https://arxiv.org/pdf/2605.28816.pdf",
+    "library": "world-model-library"
+  },
+  {
+    "slug": "894074726e565295",
+    "hash": "894074726e565295",
+    "title": "Nano World Models: A Minimalist Implementation of Future Video Prediction",
+    "arxiv": "2605.23993",
+    "pdf": "../papers/pdfs/2605.23993.pdf",
+    "page": "libraries/world-model-library/papers/894074726e565295/index.html",
+    "status": "imported",
+    "tags": [
+      "world model",
+      "video",
+      "interactive",
+      "game"
+    ],
+    "updated": "2026-05-30",
+    "summary": "Imported from a user-provided PDF or arXiv URL.",
+    "source_url": "https://arxiv.org/pdf/2605.23993",
+    "pdf_url": "https://arxiv.org/pdf/2605.23993.pdf",
+    "library": "world-model-library"
+  },
+  {
+    "slug": "676bbade33bd376c",
+    "hash": "676bbade33bd376c",
+    "title": "Veda: Scalable Video Diffusion via Distilled Sparse Attention",
+    "arxiv": "2605.30325",
+    "pdf": "../papers/pdfs/2605.30325.pdf",
+    "page": "libraries/world-model-library/papers/676bbade33bd376c/index.html",
+    "status": "imported",
+    "tags": [
+      "memory",
+      "video",
+      "dataset",
+      "benchmark"
+    ],
+    "updated": "2026-05-29",
+    "summary": "Imported from a user-provided PDF or arXiv URL.",
+    "source_url": "https://arxiv.org/pdf/2605.30325",
+    "pdf_url": "https://arxiv.org/pdf/2605.30325.pdf",
+    "library": "world-model-library"
+  },
+  {
+    "slug": "cd6142a79db22bc3",
+    "hash": "cd6142a79db22bc3",
+    "title": "Boosting Monocular Metric Depth Estimation via Bokeh Rendering",
+    "arxiv": "2512.12425",
+    "pdf": "../papers/pdfs/2512.12425.pdf",
+    "page": "libraries/world-model-library/papers/cd6142a79db22bc3/index.html",
+    "status": "imported",
+    "tags": [
+      "memory",
+      "video",
+      "interactive",
+      "dataset"
+    ],
+    "updated": "2026-05-29",
+    "summary": "Imported from a user-provided PDF or arXiv URL.",
+    "source_url": "https://arxiv.org/abs/2512.12425",
+    "pdf_url": "https://arxiv.org/pdf/2512.12425.pdf",
+    "library": "world-model-library"
+  },
+  {
+    "slug": "f140b8fcc13ea085",
+    "hash": "f140b8fcc13ea085",
+    "title": "When Does LeJEPA Learn a World Model?",
+    "arxiv": "2605.26379",
+    "pdf": "../papers/pdfs/2605.26379.pdf",
+    "page": "libraries/world-model-library/papers/f140b8fcc13ea085/index.html",
+    "status": "imported",
+    "tags": [
+      "world model",
+      "video",
+      "interactive",
+      "game"
+    ],
+    "updated": "2026-05-29",
+    "summary": "Imported from a user-provided PDF or arXiv URL.",
+    "source_url": "https://arxiv.org/abs/2605.26379",
+    "pdf_url": "https://arxiv.org/pdf/2605.26379.pdf",
+    "library": "world-model-library"
+  },
+  {
+    "slug": "52a4ec75fe0bf3b1",
+    "hash": "52a4ec75fe0bf3b1",
+    "title": "Coarse-to-Real: Generative Rendering for Populated Dynamic Scenes",
+    "arxiv": "2601.22301",
+    "pdf": "../papers/pdfs/2601.22301.pdf",
+    "page": "libraries/world-model-library/papers/52a4ec75fe0bf3b1/index.html",
+    "status": "imported",
+    "tags": [
+      "world model",
+      "memory",
+      "video",
+      "interactive"
+    ],
+    "updated": "2026-05-29",
+    "summary": "Imported from a user-provided PDF or arXiv URL.",
+    "source_url": "https://arxiv.org/abs/2601.22301",
+    "pdf_url": "https://arxiv.org/pdf/2601.22301.pdf",
+    "library": "world-model-library"
+  },
+  {
+    "slug": "423c7b08895115fd",
+    "hash": "423c7b08895115fd",
+    "title": "LTX-2: Efficient Joint Audio-Visual Foundation Model",
+    "arxiv": "2601.03233",
+    "pdf": "../papers/pdfs/2601.03233.pdf",
+    "page": "libraries/world-model-library/papers/423c7b08895115fd/index.html",
+    "status": "imported",
+    "tags": [
+      "memory",
+      "video",
+      "dataset",
+      "benchmark"
+    ],
+    "updated": "2026-05-27",
+    "summary": "Imported from a user-provided PDF or arXiv URL.",
+    "source_url": "https://arxiv.org/pdf/2601.03233",
+    "pdf_url": "https://arxiv.org/pdf/2601.03233.pdf",
+    "library": "world-model-library"
+  },
+  {
+    "slug": "624fa9c39eb34265",
+    "hash": "624fa9c39eb34265",
+    "title": "Full-4D: Generating Full-Scope 4D Scenes from a Single-View Video",
+    "arxiv": "2605.25500",
+    "pdf": "../papers/pdfs/2605.25500.pdf",
+    "page": "libraries/world-model-library/papers/624fa9c39eb34265/index.html",
+    "status": "imported",
+    "tags": [
+      "world model",
+      "memory",
+      "video",
+      "interactive"
+    ],
+    "updated": "2026-05-27",
+    "summary": "Imported from a user-provided PDF or arXiv URL.",
+    "source_url": "https://arxiv.org/abs/2605.25500",
+    "pdf_url": "https://arxiv.org/pdf/2605.25500.pdf",
+    "library": "world-model-library"
+  },
+  {
+    "slug": "477064823d1cbbdf",
+    "hash": "477064823d1cbbdf",
+    "title": "TriSplat: Simulation-Ready Feed-Forward 3D Scene Reconstruction",
+    "arxiv": "2605.26115",
+    "pdf": "../papers/pdfs/2605.26115.pdf",
+    "page": "libraries/world-model-library/papers/477064823d1cbbdf/index.html",
+    "status": "imported",
+    "tags": [
+      "memory",
+      "video",
+      "interactive",
+      "game"
+    ],
+    "updated": "2026-05-27",
+    "summary": "Imported from a user-provided PDF or arXiv URL.",
+    "source_url": "https://arxiv.org/pdf/2605.26115",
+    "pdf_url": "https://arxiv.org/pdf/2605.26115.pdf",
+    "library": "world-model-library"
+  },
+  {
+    "slug": "d331b8e708495bb8",
+    "hash": "d331b8e708495bb8",
+    "title": "Nano World Models: A Minimalist Implementation of Future Video Prediction",
+    "arxiv": "2605.23993v1",
+    "pdf": "../papers/pdfs/2605.23993v1.pdf",
+    "page": "libraries/world-model-library/papers/d331b8e708495bb8/index.html",
+    "status": "imported",
+    "tags": [
+      "world model",
+      "video",
+      "interactive",
+      "game"
+    ],
+    "updated": "2026-05-27",
+    "summary": "Imported from a user-provided PDF or arXiv URL.",
+    "source_url": "https://arxiv.org/abs/2605.23993v1",
+    "pdf_url": "https://arxiv.org/pdf/2605.23993v1.pdf",
+    "library": "world-model-library"
+  },
+  {
+    "slug": "a297813a916df783",
+    "hash": "a297813a916df783",
+    "title": "Leveraging pharmacovigilance data to predict population-scale toxicity profiles of checkpoint inhibitor immunotherapy",
+    "arxiv": "",
+    "pdf": "../papers/pdfs/a297813a916df783.pdf",
+    "page": "libraries/world-model-library/papers/a297813a916df783/index.html",
+    "status": "imported",
+    "tags": [
+      "memory",
+      "dataset",
+      "action",
+      "3D"
+    ],
+    "updated": "2026-05-26",
+    "summary": "Imported from a local PDF upload.",
+    "source_url": "upload:s43588-024-00748-8.pdf",
+    "pdf_url": "",
+    "library": "world-model-library"
+  },
+  {
+    "slug": "256dc49b7c063beb",
+    "hash": "256dc49b7c063beb",
+    "title": "Emu3.5: Native Multimodal Models are World Learners",
+    "arxiv": "2510.26583",
+    "pdf": "../papers/pdfs/2510.26583.pdf",
+    "page": "libraries/world-model-library/papers/256dc49b7c063beb/index.html",
+    "status": "imported",
+    "tags": [
+      "world model",
+      "memory",
+      "video",
+      "interactive"
+    ],
+    "updated": "2026-05-26",
+    "summary": "Imported from a user-provided PDF or arXiv URL.",
+    "source_url": "https://arxiv.org/abs/2510.26583",
+    "pdf_url": "https://arxiv.org/pdf/2510.26583.pdf",
+    "library": "world-model-library"
+  },
+  {
+    "slug": "c9ce90015d0016a3",
+    "title": "LatentUM: Unleashing the Potential of Interleaved Cross-Modal Reasoning via a Latent-Space Unified Model",
+    "arxiv": "2604.02097",
+    "pdf": "../papers/pdfs/2604.02097.pdf",
+    "page": "libraries/world-model-library/papers/c9ce90015d0016a3/index.html",
+    "status": "imported",
+    "tags": [
+      "world model",
+      "video",
+      "dataset",
+      "benchmark"
+    ],
+    "updated": "2026-05-26",
+    "summary": "Imported from a user-provided PDF or arXiv URL.",
+    "source_url": "https://arxiv.org/abs/2604.02097",
+    "pdf_url": "https://arxiv.org/pdf/2604.02097.pdf",
+    "hash": "c9ce90015d0016a3",
+    "library": "world-model-library"
+  },
+  {
+    "slug": "02a12034012932bc",
+    "title": "A Frame is Worth One Token: Efficient Generative World Modeling with Delta Tokens",
+    "arxiv": "2604.04913",
+    "pdf": "../papers/pdfs/2604.04913.pdf",
+    "page": "libraries/world-model-library/papers/02a12034012932bc/index.html",
+    "status": "imported",
+    "tags": [
+      "world model",
+      "memory",
+      "video",
+      "interactive"
+    ],
+    "updated": "2026-05-26",
+    "summary": "Imported from a user-provided PDF or arXiv URL.",
+    "source_url": "https://arxiv.org/abs/2604.04913",
+    "pdf_url": "https://arxiv.org/pdf/2604.04913.pdf",
+    "hash": "02a12034012932bc",
+    "library": "world-model-library"
+  },
+  {
+    "slug": "9392ea5e0aeda05e",
+    "title": "NeoVerse: Enhancing 4D World Model with in-the-wild Monocular Videos",
+    "arxiv": "2601.00393",
+    "pdf": "../papers/pdfs/2601.00393_NeoVerse_Enhancing_4D_World_Model_with_in-the-wild_Monocular_Videos.pdf",
+    "page": "libraries/world-model-library/papers/9392ea5e0aeda05e/index.html",
+    "status": "analyzed",
+    "tags": [
+      "4DGS",
+      "monocular videos",
+      "degradation simulation",
+      "Wan-T2V control"
+    ],
+    "updated": "2026-05-22",
+    "hash": "9392ea5e0aeda05e",
+    "library": "world-model-library"
+  },
+  {
+    "slug": "8d416213419df306",
+    "title": "InSpatio-WorldFM: An Open-Source Real-Time Generative Frame Model",
+    "arxiv": "2603.11911",
+    "pdf": "../papers/pdfs/2603.11911_InSpatio-WorldFM_An_Open-Source_Real-Time_Generative_Frame_Model.pdf",
+    "page": "libraries/world-model-library/papers/8d416213419df306/index.html",
+    "status": "analyzed",
+    "tags": [
+      "frame model",
+      "PRoPE",
+      "hybrid memory",
+      "2-step DMD"
+    ],
+    "updated": "2026-05-22",
+    "hash": "8d416213419df306",
+    "library": "world-model-library"
+  },
+  {
+    "slug": "de733ac705154f9a",
+    "title": "Lyra 2.0: Explorable Generative 3D Worlds",
+    "arxiv": "2604.13036",
+    "pdf": "../papers/pdfs/2604.13036_Lyra_2.0_Explorable_Generative_3D_Worlds.pdf",
+    "page": "libraries/world-model-library/papers/de733ac705154f9a/index.html",
+    "status": "analyzed",
+    "tags": [
+      "3D cache",
+      "spatial slots",
+      "self-augmentation",
+      "4-step DMD"
+    ],
+    "updated": "2026-05-21",
+    "hash": "de733ac705154f9a",
+    "library": "world-model-library"
+  },
+  {
+    "slug": "52ee78577b9ec82c",
+    "title": "Matrix-Game 3.0: Real-Time and Streaming Interactive World Model with Long-Horizon Memory",
+    "arxiv": "2604.08995",
+    "pdf": "../papers/pdfs/2604.08995_Matrix-Game_3.0_Real-Time_and_Streaming_Interactive_World_Model_with_Long-Horizon_Memory.pdf",
+    "page": "libraries/world-model-library/papers/52ee78577b9ec82c/index.html",
+    "status": "analyzed",
+    "tags": [
+      "camera-aware memory",
+      "multi-segment DMD",
+      "error buffer",
+      "720p@40FPS"
+    ],
+    "updated": "2026-05-21",
+    "hash": "52ee78577b9ec82c",
+    "library": "world-model-library"
+  },
+  {
+    "slug": "e944ecc1ba978347",
+    "title": "Lingbot-World: Advancing Open-source World Models",
+    "arxiv": "2601.20540",
+    "pdf": "../papers/pdfs/2601.20540_Lingbot-WorldAdvancing_Open-source_World_Models.pdf",
+    "page": "libraries/world-model-library/papers/e944ecc1ba978347/index.html",
+    "status": "analyzed",
+    "tags": [
+      "teacher / student",
+      "long-video distillation",
+      "emergent memory",
+      "action control"
+    ],
+    "updated": "2026-05-21",
+    "hash": "e944ecc1ba978347",
+    "library": "world-model-library"
+  }
+]

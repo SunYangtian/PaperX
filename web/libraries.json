@@ -1,0 +1,12 @@
+[
+  {
+    "id": "default",
+    "name": "Default",
+    "description": "A clean personal paper library."
+  },
+  {
+    "id": "world-model-library",
+    "name": "World Model",
+    "description": "Built-in world model and interactive generation reading library."
+  }
+]

@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lyra 2.0 解读</title>
+  <link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <div class="meta">arXiv 2604.13036 · Generative 3D Worlds</div>
+      <h1>Lyra 2.0: Explorable Generative 3D Worlds</h1>
+      <p class="lead">本页整理 Lyra 2.0 的 camera-conditioned video generation、3D cache memory、self-augmentation、DMD 蒸馏和 3DGS/mesh reconstruction。</p>
+      <nav class="nav">
+        <a class="button" href="/index.html?library=world-model-library">返回索引</a>
+        <a class="button primary" href="/papers/pdfs/2604.13036_Lyra_2.0_Explorable_Generative_3D_Worlds.pdf">打开 PDF</a>
+        <a class="button" href="analysis.md">analysis.md</a>
+      </nav>
+    </div>
+  </header>
+  <main>
+    <div class="wrap">
+      <section class="panel">
+        <h2>目录</h2>
+        <div class="toc">
+          <a href="#position">定位</a>
+          <a href="#training">视频模型训练</a>
+          <a href="#control">相机控制</a>
+          <a href="#memory">3D Cache Memory</a>
+          <a href="#distillation">DMD 蒸馏</a>
+          <a href="#reconstruction">3D Reconstruction</a>
+          <a href="#assets">抽取材料</a>
+        </div>
+      </section>
+
+      <section id="position" class="panel">
+        <h2>1. 定位</h2>
+        <p>Lyra 2.0 是 camera-trajectory controlled generative reconstruction 系统：从单张输入图开始，用户指定长程相机轨迹，模型生成 3D-consistent walkthrough video，并进一步重建为 3DGS 和 mesh。</p>
+        <ul>
+          <li>核心问题一：spatial forgetting，相机回看旧区域时模型忘记历史结构。</li>
+          <li>核心问题二：temporal drifting，自回归生成误差逐步累积。</li>
+          <li>核心设计：per-frame 3D cache 只用于 routing 和 correspondence，不直接作为强渲染约束。</li>
+        </ul>
+        <figure>
+          <figcaption>Figure 1: 从单张图扩展出可探索 3D world，并输出 3DGS / mesh。</figcaption>
+        </figure>
+      </section>
+
+      <section id="training" class="panel">
+        <h2>2. 视频模型训练</h2>
+        <p>Lyra 2.0 使用 DiT-based latent video diffusion，基础 VAE 为 Wan 2.1 VAE。完整训练后的 35-step video model 可视为 DMD teacher。</p>
+        <ul>
+          <li>训练数据：DL3DV 的 10K long video clips，每个视频采样约 1,000 frames。</li>
+          <li>标注：ViPE camera poses、Depth Anything V3 depth、Qwen3-VL-8B-Instruct captions。</li>
+          <li>30% I2V：单张初始图生成前 <code>L=80</code> 连续帧。</li>
+          <li>70% autoregressive chunk training：history window 作为 context，下一个 <code>L=80</code> frames 作为 target。</li>
+          <li>Self-augmentation 训练让模型在 imperfect history context 下仍向 clean target denoise。</li>
+        </ul>
+      </section>
+
+      <section id="control" class="panel">
+        <h2>3. 相机控制 / Action 注入</h2>
+        <p>Lyra 2.0 的 action 不是 WASD，而是用户指定的 camera trajectory。模型用 depth-based warping 和 Plucker ray injection 共同控制视角。</p>
+        <ul>
+          <li>Depth warping：把最近帧按 depth 和目标相机位姿 forward-warp 到目标视角，作为强几何提示。</li>
+          <li>Plucker ray：为每个像素计算 6D ray coordinate，经 MLP 投影后加到 DiT token features。</li>
+          <li>Depth warping 在大视角变化时会丢失像素，Plucker ray 提供额外 dense pose hint。</li>
+        </ul>
+      </section>
+
+      <section id="memory" class="panel">
+        <h2>4. Memory：3D Cache + Spatial Slots</h2>
+        <p>Lyra 2.0 的 memory 是 per-frame 3D cache。每帧独立保存 depth、camera parameters 和 downsampled point cloud，避免把误差融合进单个 global point cloud。</p>
+        <ul>
+          <li>Geometry-aware retrieval：把历史点云投影到 target view，按 visible points 数量选择相关 history frames。</li>
+          <li>推理时 greedy maximize coverage，选择覆盖最多未覆盖 target pixels 的历史帧。</li>
+          <li>Retrieved frames 被编码成 spatial slots，与 temporal FramePack slots 和 generation tokens 一起进入 DiT self-attention。</li>
+          <li>Canonical coordinate + depth 被 forward-warp 到 target view，经 MLP 编码后注入每个 transformer block 的 self-attention。</li>
+          <li>它 warp 几何坐标而不是 RGB，避免把 RGB warp 的空洞和边界伪影直接复制进生成结果。</li>
+        </ul>
+        <div class="two-col">
+          <figure>
+            <figcaption>Figure 2: retrieve-generate-update loop，3D cache 负责历史检索和 dense correspondence。</figcaption>
+          </figure>
+          <figure>
+            <figcaption>Spatial slots 与 temporal slots 共同进入 DiT，warped coordinate maps 注入 attention。</figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section id="distillation" class="panel">
+        <h2>5. DMD 蒸馏</h2>
+        <p>Lyra 2.0 训练了 distilled model 用于加速交互式使用。</p>
+        <ul>
+          <li>Teacher：完整 35-step video model。</li>
+          <li>Student：DMD 蒸馏到 4 denoising steps。</li>
+          <li>同时蒸馏 classifier-free guidance，推理时不再需要 conditional / unconditional 双 forward。</li>
+          <li>蒸馏期间保留 self-augmentation，维持对 autoregressive error accumulation 的鲁棒性。</li>
+          <li>论文报告 per-step generation time 约减少 13x，4-step DMD 质量接近 35-step full model。</li>
+        </ul>
+      </section>
+
+      <section id="reconstruction" class="panel">
+        <h2>6. 3D Reconstruction</h2>
+        <p>生成视频会被转成 explicit 3D assets。</p>
+        <ul>
+          <li>3DGS：基于 Depth Anything V3，修改 Gaussian DPT head 降低 Gaussian 数量。</li>
+          <li>用 Lyra 2.0 生成场景 fine-tune DAv3，使其适应 generated video 的轻微多视角不一致。</li>
+          <li>Mesh：用 OpenVDB hierarchical sparse grid，近处细网格、远处粗网格，marching cubes 提取并简化。</li>
+          <li>输出可用于 interactive viewer、VR 和 NVIDIA Isaac Sim。</li>
+        </ul>
+        <figure>
+          <figcaption>Figure 7: GUI 轨迹指定、surface mesh reconstruction 和 Isaac Sim simulation。</figcaption>
+        </figure>
+      </section>
+
+      <section id="assets" class="panel">
+        <h2>抽取材料</h2>
+        <div class="chips">
+        </div>
+        <p class="note">本目录由 PyMuPDF 从 PDF 抽取：25 页文本、25 张页面渲染图、185 个嵌入图片。</p>
+      </section>
+    </div>
+  </main>
+</body>
+</html>
