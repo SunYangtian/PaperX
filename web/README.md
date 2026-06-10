@@ -21,6 +21,7 @@ The paper workspace includes a model selector in the chat composer. The selected
 The `Analysis` tab renders and edits the current `analysis.md`, can generate a structured paper analysis, and can save assistant exchanges into that file's `QA` section.
 The renderer also treats short variable patterns such as `a_t`, `x_1`, and `s_{t+1}` as inline subscripts outside code blocks.
 If a model response is marked incomplete by the backend, the assistant message shows a continuation control that appends a follow-up generation to the same message.
+When a workspace is opened on a machine that has `papers.json` metadata but not the PDF file, the backend attempts to download the PDF from `pdf_url`, `source_url`, or `arxiv` metadata before the frontend loads the iframe.
 
 ## Maintenance
 

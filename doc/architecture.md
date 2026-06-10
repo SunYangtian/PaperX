@@ -35,7 +35,7 @@ The home page starts in the `default` library, lets the user switch libraries, a
 
 - `GET /`: serves `web/index.html`.
 - `GET /paper.html?library=<library>&slug=<paper-id>`: serves the generic workspace.
-- `GET /api/papers/<paper-id>?library=<library>`: returns metadata about available local context.
+- `GET /api/papers/<paper-id>?library=<library>`: returns metadata about available local context and lazily downloads the PDF when it is missing but `pdf_url`, `source_url`, or `arxiv` metadata is available.
 - `GET /api/papers/<paper-id>/analysis?library=<library>`: returns the current `analysis.md` content.
 - `POST /api/papers/<paper-id>/analysis`: appends a raw note to `analysis.md`; request JSON includes `library`.
 - `PUT /api/papers/<paper-id>/analysis?library=<library>`: replaces `analysis.md` with edited content from the Analysis tab.
@@ -44,7 +44,7 @@ The home page starts in the `default` library, lets the user switch libraries, a
 - `GET /api/libraries`: returns available paper libraries.
 - `POST /api/import`: receives `{ url, library }`, downloads a PDF, extracts local assets, creates a new paper workspace, and updates the active library's `papers.json`.
 - `POST /api/import-file`: receives multipart PDF upload plus `library`, imports it into the same local paper workspace format, and updates the active library's `papers.json`.
-- `DELETE /api/papers/<paper-id>?library=<library>`: removes a paper entry, its `web/libraries/<library>/papers/<paper-id>/` directory, and its PDF when no other paper in that library references the same PDF file.
+- `DELETE /api/papers/<paper-id>?library=<library>`: removes a paper entry, its `web/libraries/<library>/papers/<paper-id>/` directory, and its PDF when no paper in any library references the same PDF file.
 - `POST /api/chat`: receives `{ paper_slug, messages }`, retrieves relevant local context, and returns `{ answer, mode, sources }`.
   The payload may include `model` to override the runtime default for that request. Supported UI choices are `qwen3.7-max[1M]`, `deepseek-v4-pro[1M]`, `claude-opus-4-6`, `gpt-5.5`, `gemini-3.1-pro-preview`, `glm-5.1`, `kimi-k2.6`, `minimax-m2.7`, `qwen3-vl-plus`, and `qwen3-vl-flash`.
   The response includes `incomplete`, `incomplete_reason`, and `usage` when available, so the frontend can expose continuation controls for truncated model outputs.
@@ -59,17 +59,18 @@ The server also maps:
 ## Chat Flow
 
 1. The user opens `paper.html?library=<library>&slug=<paper-id>`.
-2. `paper_chat.js` loads `web/libraries/<library>/papers.json`, finds the selected paper, and assigns the PDF URL to the left iframe.
-3. The frontend calls `GET /api/papers/<paper-id>?library=<library>` to report how many context files and chunks are available.
-4. When the user sends a message, the frontend posts the recent conversation and current library to `POST /api/chat`.
-5. The backend retrieves relevant chunks from the current paper's local materials.
-6. If `OPENAI_API_KEY` is configured, the backend calls the OpenAI Responses API.
-7. If no API key is configured or the remote call fails, the backend returns a local retrieval answer with the most relevant excerpts.
-8. The frontend renders the answer and source chips.
-9. Each assistant answer exposes a control that can append the user question and assistant answer to the `QA` section in `analysis.md`.
-10. The `Analysis` tab renders the current `analysis.md` from the backend and can edit/save it.
-11. The `Analysis` tab can generate a structured paper analysis from local paper materials.
-12. `Similar` ranks other papers by shared tags.
+2. `paper_chat.js` loads `web/libraries/<library>/papers.json` and finds the selected paper.
+3. The frontend calls `GET /api/papers/<paper-id>?library=<library>` to report how many context files and chunks are available. If the local PDF is missing, the backend downloads it from paper metadata before returning.
+4. The frontend assigns the backend-confirmed PDF URL to the left iframe.
+5. When the user sends a message, the frontend posts the recent conversation and current library to `POST /api/chat`.
+6. The backend retrieves relevant chunks from the current paper's local materials.
+7. If `OPENAI_API_KEY` is configured, the backend calls the OpenAI Responses API.
+8. If no API key is configured or the remote call fails, the backend returns a local retrieval answer with the most relevant excerpts.
+9. The frontend renders the answer and source chips.
+10. Each assistant answer exposes a control that can append the user question and assistant answer to the `QA` section in `analysis.md`.
+11. The `Analysis` tab renders the current `analysis.md` from the backend and can edit/save it.
+12. The `Analysis` tab can generate a structured paper analysis from local paper materials.
+13. `Similar` ranks other papers by shared tags.
 
 ## Import Flow
 
@@ -93,7 +94,7 @@ Local PDF uploads follow the same extraction and metadata-writing path through `
 2. The full table page calls `DELETE /api/papers/<paper-id>?library=<library>` after confirmation.
 3. The backend removes the matching entry from the active library's `papers.json`.
 4. The backend removes `web/libraries/<library>/papers/<paper-id>/`.
-5. The backend removes the PDF file only if no remaining paper entry references the same file.
+5. The backend removes the PDF file only if no remaining paper entry in any library references the same file.
 
 ## Retrieval Strategy
 

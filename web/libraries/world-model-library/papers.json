@@ -1,5 +1,145 @@
 [
   {
+    "slug": "daa48b9d3aeadd39",
+    "hash": "daa48b9d3aeadd39",
+    "library": "world-model-library",
+    "title": "URoPE: Universal Relative Position Embedding across Geometric Spaces",
+    "arxiv": "2604.18747",
+    "pdf": "../papers/pdfs/2604.18747.pdf",
+    "page": "libraries/world-model-library/papers/daa48b9d3aeadd39/index.html",
+    "status": "imported",
+    "tags": [
+      "world model",
+      "memory",
+      "video",
+      "dataset"
+    ],
+    "updated": "2026-06-10",
+    "summary": "Imported from a user-provided PDF or arXiv URL.",
+    "source_url": "https://arxiv.org/pdf/2604.18747",
+    "pdf_url": "https://arxiv.org/pdf/2604.18747.pdf"
+  },
+  {
+    "slug": "0c275ad5c5c40182",
+    "hash": "0c275ad5c5c40182",
+    "library": "world-model-library",
+    "title": "Text-to-3D by Stitching a Multi-view Reconstruction Network to a Video Generator",
+    "arxiv": "2510.13454v2",
+    "pdf": "../papers/pdfs/2510.13454v2.pdf",
+    "page": "libraries/world-model-library/papers/0c275ad5c5c40182/index.html",
+    "status": "imported",
+    "tags": [
+      "memory",
+      "video",
+      "interactive",
+      "game"
+    ],
+    "updated": "2026-06-09",
+    "summary": "Imported from a user-provided PDF or arXiv URL.",
+    "source_url": "https://arxiv.org/abs/2510.13454v2",
+    "pdf_url": "https://arxiv.org/pdf/2510.13454v2.pdf"
+  },
+  {
+    "slug": "ad2dbf2d0f2ae86c",
+    "hash": "ad2dbf2d0f2ae86c",
+    "library": "world-model-library",
+    "title": "PointWorld: Scaling 3D World Models for In-The-Wild Robotic Manipulation",
+    "arxiv": "2601.03782",
+    "pdf": "../papers/pdfs/2601.03782.pdf",
+    "page": "libraries/world-model-library/papers/ad2dbf2d0f2ae86c/index.html",
+    "status": "imported",
+    "tags": [
+      "world model",
+      "memory",
+      "video",
+      "interactive"
+    ],
+    "updated": "2026-06-08",
+    "summary": "Imported from a user-provided PDF or arXiv URL.",
+    "source_url": "https://arxiv.org/abs/2601.03782",
+    "pdf_url": "https://arxiv.org/pdf/2601.03782.pdf"
+  },
+  {
+    "slug": "6ca2c0108a3a4d89",
+    "hash": "6ca2c0108a3a4d89",
+    "library": "world-model-library",
+    "title": "ChordEdit: One-Step Low-Energy Transport for Image Editing",
+    "arxiv": "2602.19083",
+    "pdf": "../papers/pdfs/2602.19083.pdf",
+    "page": "libraries/world-model-library/papers/6ca2c0108a3a4d89/index.html",
+    "status": "imported",
+    "tags": [
+      "memory",
+      "dataset",
+      "benchmark",
+      "diffusion"
+    ],
+    "updated": "2026-06-06",
+    "summary": "Imported from a user-provided PDF or arXiv URL.",
+    "source_url": "https://arxiv.org/pdf/2602.19083",
+    "pdf_url": "https://arxiv.org/pdf/2602.19083.pdf"
+  },
+  {
+    "slug": "3e1beab6f49fc598",
+    "hash": "3e1beab6f49fc598",
+    "library": "world-model-library",
+    "title": "HY-World 2.0: A Multi-Modal World Model for Reconstructing, Generating, and Simulating 3D Worlds",
+    "arxiv": "2604.14268",
+    "pdf": "../papers/pdfs/2604.14268.pdf",
+    "page": "libraries/world-model-library/papers/3e1beab6f49fc598/index.html",
+    "status": "imported",
+    "tags": [
+      "world model",
+      "memory",
+      "video",
+      "interactive"
+    ],
+    "updated": "2026-06-05",
+    "summary": "Imported from a user-provided PDF or arXiv URL.",
+    "source_url": "https://arxiv.org/abs/2604.14268",
+    "pdf_url": "https://arxiv.org/pdf/2604.14268.pdf"
+  },
+  {
+    "slug": "b0cd3f3775babdfe",
+    "hash": "b0cd3f3775babdfe",
+    "library": "world-model-library",
+    "title": "World-Language-Action Model for Unified World Modeling, Language Reasoning, and Action Synthesis",
+    "arxiv": "2606.05979",
+    "pdf": "../papers/pdfs/2606.05979.pdf",
+    "page": "libraries/world-model-library/papers/b0cd3f3775babdfe/index.html",
+    "status": "imported",
+    "tags": [
+      "world model",
+      "memory",
+      "video",
+      "interactive"
+    ],
+    "updated": "2026-06-05",
+    "summary": "Imported from a user-provided PDF or arXiv URL.",
+    "source_url": "https://arxiv.org/abs/2606.05979",
+    "pdf_url": "https://arxiv.org/pdf/2606.05979.pdf"
+  },
+  {
+    "slug": "69d4f0139ad27781",
+    "hash": "69d4f0139ad27781",
+    "library": "world-model-library",
+    "title": "Echo-Infinity: Learning Evolving Memory for Real-Time Infinite Video Generation",
+    "arxiv": "2606.04527",
+    "pdf": "../papers/pdfs/2606.04527.pdf",
+    "page": "libraries/world-model-library/papers/69d4f0139ad27781/index.html",
+    "status": "imported",
+    "tags": [
+      "memory",
+      "video",
+      "interactive",
+      "dataset"
+    ],
+    "updated": "2026-06-05",
+    "summary": "Imported from a user-provided PDF or arXiv URL.",
+    "source_url": "https://arxiv.org/abs/2606.04527",
+    "pdf_url": "https://arxiv.org/pdf/2606.04527.pdf"
+  },
+  {
     "slug": "c1e56b91f8bb9a46",
     "hash": "c1e56b91f8bb9a46",
     "title": "LayerPano3D: Layered 3D Panorama for Hyper-Immersive Scene Generation",

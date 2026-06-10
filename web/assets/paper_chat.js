@@ -546,32 +546,59 @@
     els.meta.textContent = [paper.arxiv ? "arXiv " + paper.arxiv : "", paper.status || "", paper.updated || ""]
       .filter(Boolean)
       .join(" · ");
-    els.openPdf.href = paper.pdf;
-    els.openPdfInline.href = paper.pdf;
-    els.pdfFrame.src = paper.pdf;
-    els.pdfStatus.textContent = "Loaded";
+    setPaperPdf(paper, { available: Boolean(paper.pdf), downloaded: false, checking: true });
 
     renderSimilarPapers(paper);
     stopWheelPropagation(els.thread);
     stopWheelPropagation(els.analysisContent);
     stopWheelPropagation(els.analysisEditor);
     renderConversation(loadConversation());
-    await Promise.all([loadContextStatus(slug), loadAnalysis(slug)]);
+    const [paperStatus] = await Promise.all([loadContextStatus(slug), loadAnalysis(slug)]);
+    if (paperStatus && paperStatus.paper) {
+      state.paper = paperStatus.paper;
+      setPaperPdf(paperStatus.paper, paperStatus.pdf_status || {});
+    }
     if (!state.messages.length) {
       addMessage("assistant", "I have loaded the local materials for this paper. Ask about contributions, method details, experiments, limitations, or comparisons.");
     }
   }
 
+  function setPaperPdf(paper, pdfStatus) {
+    const status = pdfStatus || {};
+    const pdf = paper && paper.pdf ? paper.pdf : "";
+    els.openPdf.href = pdf || "#";
+    els.openPdfInline.href = pdf || "#";
+    els.openPdf.classList.toggle("disabled", !pdf);
+    els.openPdfInline.classList.toggle("disabled", !pdf);
+    if (pdf && status.available !== false && !status.checking) {
+      els.pdfFrame.src = pdf;
+    } else {
+      els.pdfFrame.removeAttribute("src");
+    }
+    if (status.checking) {
+      els.pdfStatus.textContent = "Checking PDF";
+    } else if (status.downloaded) {
+      els.pdfStatus.textContent = "PDF downloaded";
+    } else if (status.available) {
+      els.pdfStatus.textContent = "Loaded";
+    } else {
+      els.pdfStatus.textContent = status.error || "PDF unavailable";
+    }
+  }
+
   async function loadContextStatus(paperSlug) {
     try {
+      els.contextStatus.textContent = "正在检查 PDF 和材料";
       const response = await fetch("/api/papers/" + encodeURIComponent(paperSlug) + "?library=" + encodeURIComponent(library));
       if (!response.ok) {
         throw new Error("API unavailable");
       }
       const data = await response.json();
       els.contextStatus.textContent = data.context_files + " files · " + data.chunk_count + " chunks";
+      return data;
     } catch (error) {
       els.contextStatus.textContent = "Backend disconnected";
+      return null;
     }
   }
 
@@ -621,12 +648,27 @@
         throw await responseError(response, "analysis unavailable");
       }
       const data = await response.json();
-      state.analysisRaw = data.content || "";
-      renderAnalysis(state.analysisRaw);
+      setAnalysisContent(data.content || "", { render: true, syncEditor: true });
       els.analysisStatus.textContent = "analysis.md";
     } catch (error) {
       els.analysisContent.textContent = "Analysis is unavailable: " + error.message;
       els.analysisStatus.textContent = "analysis.md unavailable";
+    }
+  }
+
+  function currentAnalysisContent() {
+    return state.analysisEditing ? els.analysisEditor.value : state.analysisRaw;
+  }
+
+  function setAnalysisContent(content, options) {
+    const nextContent = text(content);
+    const settings = Object.assign({ render: false, syncEditor: false }, options || {});
+    state.analysisRaw = nextContent;
+    if (settings.syncEditor || state.analysisEditing) {
+      els.analysisEditor.value = nextContent;
+    }
+    if (settings.render || !state.analysisEditing) {
+      renderAnalysis(nextContent);
     }
   }
 
@@ -690,7 +732,7 @@
     els.analysisSave.hidden = !isEditing;
     els.analysisCancel.hidden = !isEditing;
     if (isEditing) {
-      els.analysisEditor.value = state.analysisRaw;
+      els.analysisEditor.value = currentAnalysisContent();
       window.requestAnimationFrame(() => els.analysisEditor.focus());
     } else {
       renderAnalysis(state.analysisRaw);
@@ -698,7 +740,11 @@
   }
 
   async function saveAnalysisEdit() {
-    const content = els.analysisEditor.value;
+    const content = currentAnalysisContent();
+    if (!content.trim()) {
+      window.alert("analysis.md 内容为空，已取消保存，避免覆盖已有解析。");
+      return;
+    }
     els.analysisSave.disabled = true;
     els.analysisStatus.textContent = "Saving analysis.md";
     try {
@@ -711,7 +757,7 @@
         throw await responseError(response, "save failed");
       }
       const data = await response.json();
-      state.analysisRaw = data.content || "";
+      setAnalysisContent(data.content || content, { syncEditor: true });
       setAnalysisEditing(false);
       await loadContextStatus(slug);
       els.analysisStatus.textContent = "analysis.md";
@@ -741,8 +787,7 @@
         throw await responseError(response, "generation failed");
       }
       const data = await response.json();
-      state.analysisRaw = data.content || "";
-      renderAnalysis(state.analysisRaw);
+      setAnalysisContent(data.content || "", { render: true, syncEditor: true });
       await loadContextStatus(slug);
       setActiveTab("analysis");
       els.analysisStatus.textContent = "analysis.md";
@@ -787,12 +832,7 @@
       message.saved_to_qa = true;
       message.analysis_anchor = data.anchor || "";
       persistConversation();
-      state.analysisRaw = data.content || "";
-      if (state.analysisEditing) {
-        els.analysisEditor.value = state.analysisRaw;
-      } else {
-        renderAnalysis(state.analysisRaw);
-      }
+      setAnalysisContent(data.content || "", { render: !state.analysisEditing, syncEditor: true });
       await loadContextStatus(slug);
       renderConversation(state.messages);
       if (message.analysis_anchor) {

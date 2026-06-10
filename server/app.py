@@ -162,6 +162,22 @@ def library_papers_json(library: str = DEFAULT_LIBRARY) -> Path:
     return library_dir(library) / "papers.json"
 
 
+def library_ids() -> list[str]:
+    ids = {DEFAULT_LIBRARY}
+    if LIBRARIES_JSON.exists():
+        try:
+            libraries = json.loads(read_text(LIBRARIES_JSON))
+        except json.JSONDecodeError:
+            libraries = []
+        if isinstance(libraries, list):
+            for library in libraries:
+                if isinstance(library, dict):
+                    ids.add(normalize_library_id(str(library.get("id") or "")))
+    if LIBRARIES_DIR.exists():
+        ids.update(path.name for path in LIBRARIES_DIR.iterdir() if path.is_dir())
+    return sorted(ids)
+
+
 @lru_cache(maxsize=32)
 def load_papers(library: str = DEFAULT_LIBRARY) -> list[dict[str, Any]]:
     path = library_papers_json(library)
@@ -247,6 +263,79 @@ def pdf_path_for_paper(paper: dict[str, Any]) -> Path | None:
     if not filename:
         return None
     return PDF_DIR / filename
+
+
+def pdf_url_for_paper(paper: dict[str, Any]) -> str:
+    for key in ("pdf_url", "source_url"):
+        value = str(paper.get(key) or "").strip()
+        if value:
+            return normalize_pdf_url(value)
+    arxiv_id = str(paper.get("arxiv") or "").strip()
+    if arxiv_id:
+        return f"https://arxiv.org/pdf/{arxiv_id}.pdf"
+    return ""
+
+
+def ensure_pdf_text_assets(pdf_path: Path, paper: dict[str, Any], library: str = DEFAULT_LIBRARY) -> None:
+    paper_dir = paper_dir_for_slug(str(paper.get("slug") or ""), library)
+    extracted = paper_dir / "extracted" / "full_text.txt"
+    if paper_dir.exists() and not extracted.exists():
+        extract_pdf_assets(pdf_path, paper_dir)
+
+
+def ensure_paper_pdf(paper: dict[str, Any], library: str = DEFAULT_LIBRARY) -> dict[str, Any]:
+    pdf_path = pdf_path_for_paper(paper)
+    if pdf_path and pdf_path.exists():
+        try:
+            ensure_pdf_text_assets(pdf_path, paper, library)
+        except Exception:
+            pass
+        return {"available": True, "downloaded": False}
+
+    pdf_url = pdf_url_for_paper(paper)
+    if not pdf_url:
+        return {"available": False, "downloaded": False, "error": "no PDF URL is recorded for this paper"}
+
+    pdf_name = paper_pdf_filename(paper) or safe_filename_from_url(pdf_url)
+    pdf_path = PDF_DIR / pdf_name
+    if not str(paper.get("pdf") or "").strip():
+        paper["pdf"] = f"../papers/pdfs/{pdf_name}"
+
+    if pdf_path.exists():
+        try:
+            ensure_pdf_text_assets(pdf_path, paper, library)
+        except Exception:
+            pass
+        return {"available": True, "downloaded": False}
+
+    try:
+        pdf_bytes = download_url(pdf_url)
+    except Exception as exc:
+        return {"available": False, "downloaded": False, "error": f"failed to download pdf: {exc}"}
+
+    if not pdf_bytes.lstrip().startswith(b"%PDF"):
+        return {"available": False, "downloaded": False, "error": "downloaded file is not a PDF"}
+
+    pdf_path.parent.mkdir(parents=True, exist_ok=True)
+    pdf_path.write_bytes(pdf_bytes)
+
+    try:
+        ensure_pdf_text_assets(pdf_path, paper, library)
+    except Exception:
+        pass
+
+    load_context.cache_clear()
+    return {"available": True, "downloaded": True, "url": pdf_url}
+
+
+def is_pdf_referenced(pdf_path: Path, excluding_slug: str = "", excluding_library: str = DEFAULT_LIBRARY) -> bool:
+    for library in library_ids():
+        for paper in load_papers(library):
+            if library == excluding_library and paper.get("slug") == excluding_slug:
+                continue
+            if pdf_path_for_paper(paper) == pdf_path:
+                return True
+    return False
 
 
 def is_generic_import_title(title: str, arxiv_id: str = "") -> bool:
@@ -1022,8 +1111,7 @@ def delete_paper(slug: str):
         shutil.rmtree(paper_dir, ignore_errors=True)
 
     if pdf_path and pdf_path.exists():
-        referenced = any(pdf_path_for_paper(item) == pdf_path for item in remaining_papers)
-        if not referenced:
+        if not is_pdf_referenced(pdf_path, excluding_slug=slug, excluding_library=library):
             pdf_path.unlink(missing_ok=True)
 
     save_papers(remaining_papers, library)
@@ -1037,11 +1125,21 @@ def paper_api(slug: str):
     paper = get_paper(slug, library)
     if not paper:
         return jsonify({"error": "paper not found"}), 404
+    original_paper = dict(paper)
+    pdf_status = ensure_paper_pdf(paper, library)
+    if pdf_status.get("downloaded") or paper != original_paper:
+        papers = list(load_papers(library))
+        for index, item in enumerate(papers):
+            if item.get("slug") == slug:
+                papers[index] = paper
+                save_papers(papers, library)
+                break
     chunks = load_context(library, slug)
     files = {chunk.file for chunk in chunks}
     return jsonify(
         {
             "paper": paper,
+            "pdf_status": pdf_status,
             "context_files": len(files),
             "chunk_count": len(chunks),
         }
@@ -1092,11 +1190,13 @@ def replace_paper_analysis(slug: str):
 
     payload = request.get_json(silent=True) or {}
     content = str(payload.get("content") or "")
+    if not content.strip():
+        return jsonify({"error": "content is empty; refusing to overwrite analysis.md"}), 400
     if len(content) > 300000:
         return jsonify({"error": "content is too long"}), 400
 
     path = ensure_analysis_file(paper, library)
-    normalized = content.rstrip() + "\n" if content.strip() else f"# {paper.get('title') or slug}\n"
+    normalized = content.rstrip() + "\n"
     write_text(path, normalized)
     load_context.cache_clear()
 
