@@ -29,6 +29,8 @@ LIBRARIES_JSON = WEB_DIR / "libraries.json"
 LIBRARIES_DIR = WEB_DIR / "libraries"
 DEFAULT_LIBRARY = "default"
 PDF_DIR = ROOT / "papers" / "pdfs"
+CHAT_HISTORY_MESSAGE_LIMIT = 20
+CHAT_HISTORY_CHAR_LIMIT = 18000
 
 DEFAULT_OPENAI_BASE_URL = "https://api.openai.com/v1"
 DEFAULT_MODEL = "gpt-5.5"
@@ -888,11 +890,25 @@ def retrieve(library: str, slug: str, query: str, limit: int = 6) -> list[Chunk]
     return [chunk for _, chunk in scored[:limit]]
 
 
-def build_prompt(paper: dict[str, Any], messages: list[dict[str, str]], chunks: list[Chunk]) -> str:
-    conversation = "\n".join(
-        f"{message.get('role', 'user')}: {message.get('content', '')}"
-        for message in messages[-8:]
-    )
+def format_conversation(messages: list[dict[str, Any]]) -> str:
+    selected: list[str] = []
+    used_chars = 0
+    for message in reversed(messages[-CHAT_HISTORY_MESSAGE_LIMIT:]):
+        role = str(message.get("role") or "user")
+        content = str(message.get("content") or "").strip()
+        if not content:
+            continue
+        line = f"{role}: {content}"
+        line_len = len(line)
+        if selected and used_chars + line_len > CHAT_HISTORY_CHAR_LIMIT:
+            break
+        selected.append(line)
+        used_chars += line_len
+    return "\n".join(reversed(selected))
+
+
+def build_prompt(paper: dict[str, Any], messages: list[dict[str, Any]], chunks: list[Chunk]) -> str:
+    conversation = format_conversation(messages)
     context = "\n\n".join(
         f"[{idx + 1}] {chunk.label} ({chunk.file})\n{chunk.text}"
         for idx, chunk in enumerate(chunks)
@@ -906,7 +922,6 @@ def build_prompt(paper: dict[str, Any], messages: list[dict[str, str]], chunks: 
 - 优先依据给定材料回答；材料不足时明确说明。
 - 用中文回答，保留必要英文术语。
 - 分析方法、实验、贡献或局限时给出结构化结论。
-- 如果使用了材料，请在答案末尾列出“参考材料”，标注片段编号或页码。
 
 最近对话：
 {conversation}
@@ -1012,6 +1027,100 @@ def fallback_answer(question: str, chunks: list[Chunk], reason: str) -> str:
 
 def source_payload(chunks: list[Chunk]) -> list[dict[str, str]]:
     return [{"label": chunk.label, "file": chunk.file} for chunk in chunks]
+
+
+def conversation_path_for_slug(slug: str, library: str = DEFAULT_LIBRARY) -> Path:
+    return paper_dir_for_slug(slug, library) / "conversation.json"
+
+
+def normalize_chat_message(message: Any) -> dict[str, Any] | None:
+    if not isinstance(message, dict):
+        return None
+    role = str(message.get("role") or "").strip()
+    if role not in {"user", "assistant"}:
+        return None
+    content = str(message.get("content") or "").strip()
+    if not content:
+        return None
+
+    normalized: dict[str, Any] = {
+        "role": role,
+        "content": content[:50000],
+    }
+    if isinstance(message.get("sources"), list):
+        sources = []
+        for source in message.get("sources", [])[:12]:
+            if isinstance(source, dict):
+                sources.append(
+                    {
+                        "label": str(source.get("label") or "")[:200],
+                        "file": str(source.get("file") or "")[:300],
+                    }
+                )
+        normalized["sources"] = sources
+    if message.get("created_at"):
+        normalized["created_at"] = str(message.get("created_at"))[:40]
+    if message.get("model"):
+        normalized["model"] = str(message.get("model"))[:100]
+    if message.get("incomplete") is not None:
+        normalized["incomplete"] = bool(message.get("incomplete"))
+    if message.get("incomplete_reason"):
+        normalized["incomplete_reason"] = str(message.get("incomplete_reason"))[:300]
+    if message.get("saved_to_qa") or message.get("saved_to_analysis"):
+        normalized["saved_to_qa"] = True
+    if message.get("analysis_anchor"):
+        normalized["analysis_anchor"] = str(message.get("analysis_anchor"))[:120]
+    return normalized
+
+
+def load_conversation(slug: str, library: str = DEFAULT_LIBRARY) -> dict[str, Any]:
+    path = conversation_path_for_slug(slug, library)
+    if not path.exists():
+        return {"version": 1, "messages": []}
+    try:
+        payload = json.loads(read_text(path))
+    except (json.JSONDecodeError, OSError):
+        return {"version": 1, "messages": []}
+    raw_messages = payload.get("messages") if isinstance(payload, dict) else []
+    messages = [
+        normalized
+        for normalized in (normalize_chat_message(message) for message in raw_messages or [])
+        if normalized
+    ]
+    return {"version": 1, "messages": messages}
+
+
+def save_conversation(slug: str, messages: list[dict[str, Any]], library: str = DEFAULT_LIBRARY) -> None:
+    normalized_messages = [
+        normalized
+        for normalized in (normalize_chat_message(message) for message in messages)
+        if normalized
+    ]
+    payload = {
+        "version": 1,
+        "updated": datetime.now().isoformat(timespec="seconds"),
+        "messages": normalized_messages,
+    }
+    write_text(conversation_path_for_slug(slug, library), json.dumps(payload, ensure_ascii=False, indent=2))
+
+
+def chat_message(role: str, content: str, **extra: Any) -> dict[str, Any]:
+    message: dict[str, Any] = {
+        "role": role,
+        "content": content,
+        "created_at": datetime.now().isoformat(timespec="seconds"),
+    }
+    message.update(extra)
+    normalized = normalize_chat_message(message)
+    return normalized or {"role": role, "content": content}
+
+
+def last_user_question(messages: list[dict[str, Any]], before_index: int | None = None) -> str:
+    search = messages[:before_index] if before_index is not None else messages
+    for message in reversed(search):
+        if message.get("role") == "user":
+            return str(message.get("content") or "").strip()
+    return ""
 
 
 def analysis_path_for_slug(slug: str, library: str = DEFAULT_LIBRARY) -> Path:
@@ -1338,6 +1447,34 @@ def paper_analysis_api(slug: str):
     return jsonify({"content": read_text(path)})
 
 
+@app.get("/api/papers/<slug>/conversation")
+def paper_conversation_api(slug: str):
+    library = request_library()
+    paper = get_paper(slug, library)
+    if not paper:
+        return jsonify({"error": "paper not found"}), 404
+    return jsonify(load_conversation(slug, library))
+
+
+@app.put("/api/papers/<slug>/conversation")
+def update_paper_conversation_api(slug: str):
+    payload = request.get_json(silent=True) or {}
+    library = request_library(payload)
+    paper = get_paper(slug, library)
+    if not paper:
+        return jsonify({"error": "paper not found"}), 404
+    raw_messages = payload.get("messages") or []
+    if not isinstance(raw_messages, list):
+        return jsonify({"error": "messages must be a list"}), 400
+    messages = [
+        normalized
+        for normalized in (normalize_chat_message(message) for message in raw_messages)
+        if normalized
+    ]
+    save_conversation(slug, messages, library)
+    return jsonify(load_conversation(slug, library))
+
+
 @app.post("/api/papers/<slug>/analysis")
 def append_paper_analysis(slug: str):
     library = request_library()
@@ -1462,9 +1599,10 @@ def chat_api():
     library = request_library(payload)
     slug = str(payload.get("paper_slug", "")).strip()
     selected_model = str(payload.get("model", "")).strip()
-    messages = payload.get("messages") or []
-    if not slug or not isinstance(messages, list):
-        return jsonify({"error": "paper_slug and messages are required"}), 400
+    new_message = str(payload.get("message") or "").strip()
+    raw_messages = payload.get("messages") or []
+    if not slug:
+        return jsonify({"error": "paper_slug is required"}), 400
     if selected_model and selected_model not in AVAILABLE_CHAT_MODELS:
         return jsonify({"error": "unsupported model"}), 400
 
@@ -1472,11 +1610,131 @@ def chat_api():
     if not paper:
         return jsonify({"error": "paper not found"}), 404
 
-    question = ""
-    for message in reversed(messages):
-        if message.get("role") == "user":
-            question = str(message.get("content", "")).strip()
-            break
+    saved_messages = load_conversation(slug, library)["messages"]
+    continue_index_raw = payload.get("continue_message_index")
+    regenerate_index_raw = payload.get("regenerate_message_index")
+
+    if regenerate_index_raw is not None:
+        try:
+            regenerate_index = int(regenerate_index_raw)
+        except (TypeError, ValueError):
+            return jsonify({"error": "regenerate_message_index must be an integer"}), 400
+        if regenerate_index < 0 or regenerate_index >= len(saved_messages):
+            return jsonify({"error": "regenerate_message_index is out of range"}), 400
+        target = saved_messages[regenerate_index]
+        if target.get("role") != "assistant":
+            return jsonify({"error": "regenerate_message_index must point to an assistant message"}), 400
+
+        question = last_user_question(saved_messages, regenerate_index)
+        if not question:
+            return jsonify({"error": "no user question found before this assistant message"}), 400
+
+        prompt_messages = saved_messages[:regenerate_index]
+        chunks = retrieve(library, slug, question)
+        prompt = build_prompt(paper, prompt_messages, chunks)
+        incomplete = False
+        incomplete_reason = ""
+        usage: dict[str, Any] = {}
+        try:
+            result = call_openai(prompt, selected_model)
+            answer = result["answer"]
+            incomplete = bool(result.get("incomplete"))
+            incomplete_reason = str(result.get("incomplete_reason") or "")
+            usage = result.get("usage") or {}
+            mode = "openai"
+        except (RuntimeError, TimeoutError, socket.timeout, urllib.error.URLError, urllib.error.HTTPError) as exc:
+            answer = fallback_answer(question, chunks, str(exc))
+            mode = "local"
+
+        saved_messages[regenerate_index] = chat_message(
+            "assistant",
+            answer,
+            sources=source_payload(chunks),
+            incomplete=incomplete,
+            incomplete_reason=incomplete_reason,
+            model=selected_model or model_runtime_config()["model"],
+        )
+        save_conversation(slug, saved_messages, library)
+        return jsonify(
+            {
+                "answer": answer,
+                "mode": mode,
+                "model": selected_model or model_runtime_config()["model"],
+                "library": library,
+                "incomplete": incomplete,
+                "incomplete_reason": incomplete_reason,
+                "usage": usage,
+                "sources": source_payload(chunks),
+                "messages": load_conversation(slug, library)["messages"],
+            }
+        )
+
+    if continue_index_raw is not None:
+        try:
+            continue_index = int(continue_index_raw)
+        except (TypeError, ValueError):
+            return jsonify({"error": "continue_message_index must be an integer"}), 400
+        if continue_index < 0 or continue_index >= len(saved_messages):
+            return jsonify({"error": "continue_message_index is out of range"}), 400
+        target = saved_messages[continue_index]
+        if target.get("role") != "assistant":
+            return jsonify({"error": "continue_message_index must point to an assistant message"}), 400
+
+        question = last_user_question(saved_messages, continue_index) or "继续生成"
+        continue_prompt = new_message or "请从上一条 assistant 回答被截断的位置继续生成，不要重复已经写过的内容。"
+        prompt_messages = saved_messages + [chat_message("user", continue_prompt)]
+        chunks = retrieve(library, slug, question)
+        prompt = build_prompt(paper, prompt_messages, chunks)
+        incomplete = False
+        incomplete_reason = ""
+        usage: dict[str, Any] = {}
+        try:
+            result = call_openai(prompt, selected_model)
+            answer = result["answer"]
+            incomplete = bool(result.get("incomplete"))
+            incomplete_reason = str(result.get("incomplete_reason") or "")
+            usage = result.get("usage") or {}
+            mode = "openai"
+        except (RuntimeError, TimeoutError, socket.timeout, urllib.error.URLError, urllib.error.HTTPError) as exc:
+            answer = fallback_answer(question, chunks, str(exc))
+            mode = "local"
+
+        target["content"] = f"{target.get('content', '').rstrip()}\n\n{answer}".strip()
+        target["sources"] = (target.get("sources") or []) + source_payload(chunks)
+        target["incomplete"] = incomplete
+        target["incomplete_reason"] = incomplete_reason
+        target["model"] = selected_model or model_runtime_config()["model"]
+        target["saved_to_qa"] = False
+        target["analysis_anchor"] = ""
+        save_conversation(slug, saved_messages, library)
+        return jsonify(
+            {
+                "answer": answer,
+                "mode": mode,
+                "model": selected_model or model_runtime_config()["model"],
+                "library": library,
+                "incomplete": incomplete,
+                "incomplete_reason": incomplete_reason,
+                "usage": usage,
+                "sources": source_payload(chunks),
+                "messages": load_conversation(slug, library)["messages"],
+            }
+        )
+
+    if new_message:
+        user_message = chat_message("user", new_message)
+        messages = saved_messages + [user_message]
+        question = new_message
+    else:
+        if not isinstance(raw_messages, list):
+            return jsonify({"error": "messages must be a list"}), 400
+        messages = [
+            normalized
+            for normalized in (normalize_chat_message(message) for message in raw_messages)
+            if normalized
+        ]
+        question = last_user_question(messages)
+
     if not question:
         return jsonify({"error": "a user question is required"}), 400
 
@@ -1496,6 +1754,16 @@ def chat_api():
         answer = fallback_answer(question, chunks, str(exc))
         mode = "local"
 
+    assistant_message = chat_message(
+        "assistant",
+        answer,
+        sources=source_payload(chunks),
+        incomplete=incomplete,
+        incomplete_reason=incomplete_reason,
+        model=selected_model or model_runtime_config()["model"],
+    )
+    save_conversation(slug, messages + [assistant_message], library)
+
     return jsonify(
         {
             "answer": answer,
@@ -1506,6 +1774,7 @@ def chat_api():
             "incomplete_reason": incomplete_reason,
             "usage": usage,
             "sources": source_payload(chunks),
+            "messages": load_conversation(slug, library)["messages"],
         }
     )
 

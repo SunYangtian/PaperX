@@ -781,13 +781,6 @@ footer {
   max-width: 100%;
 }
 
-.message-sources {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 8px;
-}
-
 .message-actions {
   display: flex;
   align-items: center;
@@ -820,7 +813,6 @@ footer {
   opacity: 0.72;
 }
 
-.source-chip,
 .source-links .chip {
   display: inline-flex;
   align-items: center;

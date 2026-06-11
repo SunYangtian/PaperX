@@ -11,6 +11,7 @@ This directory stores generated reading notes for analyzed papers.
 - `libraries.json`: available paper libraries.
 - `libraries/<library>/papers.json`: lightweight metadata for one library. The default library starts empty.
 - `libraries/<library>/papers/<paper-hash>/analysis.md`: stable paper analysis for imported papers.
+- `libraries/<library>/papers/<paper-hash>/conversation.json`: server-side assistant chat session for that paper.
 - `libraries/<library>/papers/<paper-hash>/extracted/`: extracted full text and page-level text.
 
 The published `default` library is intentionally empty except `.gitkeep`; imports populate it locally.
@@ -18,6 +19,7 @@ The published `default` library is intentionally empty except `.gitkeep`; import
 Imported paper hashes are stable IDs derived from arXiv ID when available, otherwise from the normalized PDF URL.
 The home page records opened papers in localStorage per library and shows only the six most recently read papers. The full table page always renders the current full list from the active library's `papers.json`.
 The paper workspace includes a model selector in the chat composer. The selected model is stored in localStorage and sent with each `/api/chat` request.
+Assistant chat history is stored per paper on the server in `conversation.json`; old browser-local conversations are migrated into that file when a workspace is opened.
 The `Analysis` tab renders and edits the current `analysis.md`, can generate a structured paper analysis, and can save assistant exchanges into that file's `QA` section.
 The renderer also treats short variable patterns such as `a_t`, `x_1`, and `s_{t+1}` as inline subscripts outside code blocks.
 If a model response is marked incomplete by the backend, the assistant message shows a continuation control that appends a follow-up generation to the same message.

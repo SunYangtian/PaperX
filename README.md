@@ -2,6 +2,8 @@
 
 PaperX is a local paper reading workspace with PDF viewing, paper-aware chat, local notes, and PDF import.
 
+![PaperX home screen](web/assets/PaperX.png)
+
 ## Quick Start
 
 From a fresh checkout:
@@ -21,3 +23,7 @@ The installer will ask for `OPENAI_BASE_URL`, `OPENAI_MODEL`, and `OPENAI_API_KE
 ## Data
 
 PDF files and extracted assets are local-only and ignored by Git. The default library starts empty; `world-model-library` is available from the library selector.
+
+## Contributing
+
+PaperX is an evolving local research tool. Contributions, bug reports, workflow ideas, and maintenance help are welcome.

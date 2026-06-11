@@ -27,3 +27,6 @@ papers/pdfs/*
 
 # Generated extraction assets. Recreate these by importing PDFs locally.
 web/libraries/**/papers/**/extracted/
+
+# Local assistant conversations can contain private questions and answers.
+web/libraries/**/papers/**/conversation.json

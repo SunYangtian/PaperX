@@ -86,7 +86,7 @@ For long-running service management, run `./scripts/run.sh` under `systemd`, `su
 
 ## GitHub Publishing Notes
 
-Do not commit local credentials, private gateway URLs, downloaded PDFs, or generated extraction artifacts.
+Do not commit local credentials, private gateway URLs, downloaded PDFs, generated extraction artifacts, or local assistant conversations.
 
 The repository should track:
 
@@ -100,5 +100,6 @@ The repository should not track:
 - `.env`
 - `papers/pdfs/*.pdf`
 - `web/libraries/**/papers/**/extracted/`
+- `web/libraries/**/papers/**/conversation.json`
 
 The `default` library should stay usable as a clean starter library. Domain-specific paper lists and curated notes can live in their own library, such as `world-model-library`, instead of being loaded as the default.

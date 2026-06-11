@@ -1,5 +1,45 @@
 [
   {
+    "slug": "926522b8c9c6b497",
+    "hash": "926522b8c9c6b497",
+    "library": "world-model-library",
+    "title": "Unified Camera Positional Encoding for Controlled Video Generation",
+    "arxiv": "2512.07237",
+    "pdf": "../papers/pdfs/2512.07237.pdf",
+    "page": "libraries/world-model-library/papers/926522b8c9c6b497/index.html",
+    "status": "imported",
+    "tags": [
+      "world model",
+      "video",
+      "interactive",
+      "game"
+    ],
+    "updated": "2026-06-11",
+    "summary": "Imported from a user-provided PDF or arXiv URL.",
+    "source_url": "https://arxiv.org/pdf/2512.07237",
+    "pdf_url": "https://arxiv.org/pdf/2512.07237.pdf"
+  },
+  {
+    "slug": "0c1142e28296fff2",
+    "hash": "0c1142e28296fff2",
+    "library": "world-model-library",
+    "title": "BiWM: Advancing Open-Source Interactive Video World Models with Bidirectional Autoregression",
+    "arxiv": "2606.10135",
+    "pdf": "../papers/pdfs/2606.10135.pdf",
+    "page": "libraries/world-model-library/papers/0c1142e28296fff2/index.html",
+    "status": "imported",
+    "tags": [
+      "world model",
+      "memory",
+      "video",
+      "interactive"
+    ],
+    "updated": "2026-06-10",
+    "summary": "Imported from a user-provided PDF or arXiv URL.",
+    "source_url": "https://arxiv.org/abs/2606.10135",
+    "pdf_url": "https://arxiv.org/pdf/2606.10135.pdf"
+  },
+  {
     "slug": "661d967e4292d3d0",
     "hash": "661d967e4292d3d0",
     "library": "world-model-library",

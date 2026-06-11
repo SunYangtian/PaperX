@@ -1,6 +1,9 @@
 (function () {
   const RECENT_PAPERS_KEY = "paper-recent-slugs";
   const CHAT_MODEL_KEY = "paper-chat-model";
+  const CHAT_MODEL_DEFAULT_VERSION_KEY = "paper-chat-model-default-version";
+  const DEFAULT_CHAT_MODEL = "gpt-5.5";
+  const CHAT_MODEL_DEFAULT_VERSION = "20260612-gpt-5.5";
   const ACTIVE_LIBRARY_KEY = "paper-active-library";
   const params = new URLSearchParams(window.location.search);
   const slug = params.get("slug");
@@ -59,7 +62,6 @@
     );
     state.messages.push(message);
     renderMessage(message);
-    persistConversation();
     els.thread.scrollTop = els.thread.scrollHeight;
   }
 
@@ -69,11 +71,21 @@
 
   function setupModelSelect() {
     const savedModel = window.localStorage.getItem(CHAT_MODEL_KEY);
-    if (savedModel && Array.from(els.model.options).some((option) => option.value === savedModel)) {
+    const options = Array.from(els.model.options);
+    const hasOption = (value) => options.some((option) => option.value === value);
+    const defaultVersion = window.localStorage.getItem(CHAT_MODEL_DEFAULT_VERSION_KEY);
+    if (defaultVersion !== CHAT_MODEL_DEFAULT_VERSION && hasOption(DEFAULT_CHAT_MODEL)) {
+      els.model.value = DEFAULT_CHAT_MODEL;
+      window.localStorage.setItem(CHAT_MODEL_KEY, DEFAULT_CHAT_MODEL);
+      window.localStorage.setItem(CHAT_MODEL_DEFAULT_VERSION_KEY, CHAT_MODEL_DEFAULT_VERSION);
+    } else if (savedModel && hasOption(savedModel)) {
       els.model.value = savedModel;
+    } else if (hasOption(DEFAULT_CHAT_MODEL)) {
+      els.model.value = DEFAULT_CHAT_MODEL;
     }
     els.model.addEventListener("change", () => {
       window.localStorage.setItem(CHAT_MODEL_KEY, els.model.value);
+      window.localStorage.setItem(CHAT_MODEL_DEFAULT_VERSION_KEY, CHAT_MODEL_DEFAULT_VERSION);
     });
   }
 
@@ -92,14 +104,34 @@
     window.localStorage.setItem(RECENT_PAPERS_KEY + ":" + library, JSON.stringify(slugs));
   }
 
-  function persistConversation() {
+  async function saveConversationToServer(messages) {
     if (!slug) {
-      return;
+      return null;
     }
-    window.localStorage.setItem(getConversationKey(), JSON.stringify(state.messages));
+    const response = await fetch("/api/papers/" + encodeURIComponent(slug) + "/conversation", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ library, messages })
+    });
+    if (!response.ok) {
+      throw await responseError(response, "conversation save failed");
+    }
+    return response.json();
   }
 
-  function loadConversation() {
+  async function loadConversationFromServer() {
+    if (!slug) {
+      return [];
+    }
+    const response = await fetch("/api/papers/" + encodeURIComponent(slug) + "/conversation?library=" + encodeURIComponent(library), { cache: "no-cache" });
+    if (!response.ok) {
+      throw await responseError(response, "conversation unavailable");
+    }
+    const data = await response.json();
+    return Array.isArray(data.messages) ? data.messages : [];
+  }
+
+  function loadLocalConversation() {
     if (!slug) {
       return [];
     }
@@ -110,6 +142,27 @@
     } catch (error) {
       return [];
     }
+  }
+
+  async function loadConversation() {
+    const localMessages = loadLocalConversation()
+      .filter((message) => message && (message.role === "user" || message.role === "assistant") && message.content);
+    let serverMessages = [];
+    try {
+      serverMessages = await loadConversationFromServer();
+    } catch (error) {
+      return localMessages;
+    }
+    if (serverMessages.length) {
+      return serverMessages;
+    }
+
+    if (!localMessages.length) {
+      return [];
+    }
+
+    const saved = await saveConversationToServer(localMessages);
+    return saved && Array.isArray(saved.messages) ? saved.messages : localMessages;
   }
 
   function renderConversation(messages) {
@@ -149,18 +202,6 @@
     body.innerHTML = renderRichText(message.content);
     item.appendChild(body);
 
-    if (message.sources && message.sources.length) {
-      const sourceList = document.createElement("div");
-      sourceList.className = "message-sources";
-      message.sources.forEach((source) => {
-        const chip = document.createElement("span");
-        chip.className = "source-chip";
-        chip.textContent = source.label || source.file || "source";
-        sourceList.appendChild(chip);
-      });
-      item.appendChild(sourceList);
-    }
-
     if (message.role === "assistant") {
       const controls = document.createElement("div");
       controls.className = "message-actions";
@@ -179,6 +220,13 @@
         saveButton.addEventListener("click", () => saveMessageToQa(message, saveButton));
       }
       controls.appendChild(saveButton);
+
+      const regenerateButton = document.createElement("button");
+      regenerateButton.type = "button";
+      regenerateButton.className = "button slim regenerate-button";
+      regenerateButton.textContent = "重新生成";
+      regenerateButton.addEventListener("click", () => regenerateMessage(message));
+      controls.appendChild(regenerateButton);
 
       if (message.incomplete) {
         const note = document.createElement("span");
@@ -552,7 +600,7 @@
     stopWheelPropagation(els.thread);
     stopWheelPropagation(els.analysisContent);
     stopWheelPropagation(els.analysisEditor);
-    renderConversation(loadConversation());
+    renderConversation(await loadConversation());
     const [paperStatus] = await Promise.all([loadContextStatus(slug), loadAnalysis(slug)]);
     if (paperStatus && paperStatus.paper) {
       state.paper = paperStatus.paper;
@@ -831,7 +879,7 @@
       const data = await response.json();
       message.saved_to_qa = true;
       message.analysis_anchor = data.anchor || "";
-      persistConversation();
+      await saveConversationToServer(state.messages);
       setAnalysisContent(data.content || "", { render: !state.analysisEditing, syncEditor: true });
       await loadContextStatus(slug);
       renderConversation(state.messages);
@@ -857,10 +905,7 @@
           library,
           paper_slug: slug,
           model: els.model.value,
-          messages: state.messages
-            .filter((message) => message.role === "user" || message.role === "assistant")
-            .map((message) => ({ role: message.role, content: message.content }))
-            .slice(-10)
+          message: content
         })
       });
 
@@ -871,11 +916,15 @@
 
       const data = await response.json();
       pending.remove();
-      addMessage("assistant", data.answer, data.sources || [], {
-        incomplete: Boolean(data.incomplete),
-        incomplete_reason: data.incomplete_reason || "",
-        model: data.model || els.model.value
-      });
+      if (Array.isArray(data.messages)) {
+        renderConversation(data.messages);
+      } else {
+        addMessage("assistant", data.answer, data.sources || [], {
+          incomplete: Boolean(data.incomplete),
+          incomplete_reason: data.incomplete_reason || "",
+          model: data.model || els.model.value
+        });
+      }
     } catch (error) {
       pending.remove();
       addMessage("assistant", "Chat service is unavailable: " + error.message);
@@ -888,12 +937,8 @@
   async function continueMessage(message) {
     setBusy(true);
     const pending = createPendingMessage();
+    const messageIndex = state.messages.indexOf(message);
     const continuePrompt = "请从上一条 assistant 回答被截断的位置继续生成，不要重复已经写过的内容。";
-    const conversation = state.messages
-      .filter((item) => item.role === "user" || item.role === "assistant")
-      .map((item) => ({ role: item.role, content: item.content }))
-      .slice(-10);
-    conversation.push({ role: "user", content: continuePrompt });
 
     try {
       const response = await fetch("/api/chat", {
@@ -903,7 +948,8 @@
           library,
           paper_slug: slug,
           model: els.model.value,
-          messages: conversation
+          message: continuePrompt,
+          continue_message_index: messageIndex
         })
       });
 
@@ -914,20 +960,72 @@
 
       const data = await response.json();
       pending.remove();
-      message.content = message.content + "\n\n" + data.answer;
-      message.sources = Array.isArray(data.sources)
-        ? (message.sources || []).concat(data.sources)
-        : message.sources || [];
-      message.incomplete = Boolean(data.incomplete);
-      message.incomplete_reason = data.incomplete_reason || "";
-      message.model = data.model || els.model.value;
-      message.saved_to_qa = false;
-      message.analysis_anchor = "";
-      persistConversation();
-      renderConversation(state.messages);
+      if (Array.isArray(data.messages)) {
+        renderConversation(data.messages);
+      } else {
+        message.content = message.content + "\n\n" + data.answer;
+        message.sources = Array.isArray(data.sources)
+          ? (message.sources || []).concat(data.sources)
+          : message.sources || [];
+        message.incomplete = Boolean(data.incomplete);
+        message.incomplete_reason = data.incomplete_reason || "";
+        message.model = data.model || els.model.value;
+        message.saved_to_qa = false;
+        message.analysis_anchor = "";
+        await saveConversationToServer(state.messages);
+        renderConversation(state.messages);
+      }
     } catch (error) {
       pending.remove();
       addMessage("assistant", "Continue generation failed: " + error.message);
+    } finally {
+      setBusy(false);
+      els.input.focus();
+    }
+  }
+
+  async function regenerateMessage(message) {
+    const messageIndex = state.messages.indexOf(message);
+    if (messageIndex < 0) {
+      return;
+    }
+    setBusy(true);
+    const pending = createPendingMessage();
+    try {
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          library,
+          paper_slug: slug,
+          model: els.model.value,
+          regenerate_message_index: messageIndex
+        })
+      });
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error || "请求失败");
+      }
+
+      const data = await response.json();
+      pending.remove();
+      if (Array.isArray(data.messages)) {
+        renderConversation(data.messages);
+      } else {
+        message.content = data.answer || message.content;
+        message.sources = Array.isArray(data.sources) ? data.sources : [];
+        message.incomplete = Boolean(data.incomplete);
+        message.incomplete_reason = data.incomplete_reason || "";
+        message.model = data.model || els.model.value;
+        message.saved_to_qa = false;
+        message.analysis_anchor = "";
+        await saveConversationToServer(state.messages);
+        renderConversation(state.messages);
+      }
+    } catch (error) {
+      pending.remove();
+      window.alert("重新生成失败：" + error.message);
     } finally {
       setBusy(false);
       els.input.focus();

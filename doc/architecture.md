@@ -22,6 +22,7 @@ The right side now follows an alphaXiv-style tool strip with three tabs: `Assist
 Each paper keeps local analysis assets under `web/libraries/<library>/papers/<paper-hash>/`:
 
 - `analysis.md`: stable reading notes.
+- `conversation.json`: server-side assistant conversation state for the paper workspace.
 - `extracted/full_text.txt`: extracted full paper text.
 - `extracted/text_pages/page_*.txt`: page-level extracted text used for source labels and retrieval.
 
@@ -41,11 +42,14 @@ The home page starts in the `default` library, lets the user switch libraries, a
 - `PUT /api/papers/<paper-id>/analysis?library=<library>`: replaces `analysis.md` with edited content from the Analysis tab.
 - `POST /api/papers/<paper-id>/analysis/generate`: generates or replaces the `Structured Analysis` section; request JSON includes `library`.
 - `POST /api/papers/<paper-id>/analysis/qa`: appends a selected assistant exchange to the `QA` section; request JSON includes `library`.
+- `GET /api/papers/<paper-id>/conversation?library=<library>`: returns the server-side chat session stored in `conversation.json`.
+- `PUT /api/papers/<paper-id>/conversation`: replaces the stored chat session; request JSON includes `library` and `messages`.
 - `GET /api/libraries`: returns available paper libraries.
 - `POST /api/import`: receives `{ url, library }`, downloads a PDF, extracts local assets, creates a new paper workspace, and updates the active library's `papers.json`.
 - `POST /api/import-file`: receives multipart PDF upload plus `library`, imports it into the same local paper workspace format, and updates the active library's `papers.json`.
 - `DELETE /api/papers/<paper-id>?library=<library>`: removes a paper entry, its `web/libraries/<library>/papers/<paper-id>/` directory, and its PDF when no paper in any library references the same PDF file.
-- `POST /api/chat`: receives `{ paper_slug, messages }`, retrieves relevant local context, and returns `{ answer, mode, sources }`.
+- `POST /api/chat`: receives `{ paper_slug, message }`, appends the exchange to the paper's server-side `conversation.json`, retrieves relevant local context, and returns `{ answer, mode, sources, messages }`.
+  For continuation, the payload includes `continue_message_index` so the backend can append the continuation to the selected assistant message.
   The payload may include `model` to override the runtime default for that request. Supported UI choices are `qwen3.7-max[1M]`, `deepseek-v4-pro[1M]`, `claude-opus-4-6`, `gpt-5.5`, `gemini-3.1-pro-preview`, `glm-5.1`, `kimi-k2.6`, `minimax-m2.7`, `qwen3-vl-plus`, and `qwen3-vl-flash`.
   The response includes `incomplete`, `incomplete_reason`, and `usage` when available, so the frontend can expose continuation controls for truncated model outputs.
 
@@ -62,15 +66,16 @@ The server also maps:
 2. `paper_chat.js` loads `web/libraries/<library>/papers.json` and finds the selected paper.
 3. The frontend calls `GET /api/papers/<paper-id>?library=<library>` to report how many context files and chunks are available. If the local PDF is missing, the backend downloads it from paper metadata before returning.
 4. The frontend assigns the backend-confirmed PDF URL to the left iframe.
-5. When the user sends a message, the frontend posts the recent conversation and current library to `POST /api/chat`.
-6. The backend retrieves relevant chunks from the current paper's local materials.
-7. If `OPENAI_API_KEY` is configured, the backend calls the OpenAI Responses API.
-8. If no API key is configured or the remote call fails, the backend returns a local retrieval answer with the most relevant excerpts.
-9. The frontend renders the answer and source chips.
-10. Each assistant answer exposes a control that can append the user question and assistant answer to the `QA` section in `analysis.md`.
-11. The `Analysis` tab renders the current `analysis.md` from the backend and can edit/save it.
-12. The `Analysis` tab can generate a structured paper analysis from local paper materials.
-13. `Similar` ranks other papers by shared tags.
+5. The frontend loads `GET /api/papers/<paper-id>/conversation?library=<library>` and renders the stored server-side session. If the server session is empty but old localStorage messages exist, the frontend migrates them with `PUT /api/papers/<paper-id>/conversation`.
+6. When the user sends a message, the frontend posts only the new message and current library to `POST /api/chat`.
+7. The backend loads the paper's stored conversation, retrieves relevant chunks from local materials, builds the prompt from saved chat history plus the new question, and writes the new user/assistant exchange back to `conversation.json`.
+8. If `OPENAI_API_KEY` is configured, the backend calls the OpenAI Responses API.
+9. If no API key is configured or the remote call fails, the backend returns a local retrieval answer with the most relevant excerpts.
+10. The frontend renders the returned server-side message list and source chips.
+11. Each assistant answer exposes a control that can append the user question and assistant answer to the `QA` section in `analysis.md`.
+12. The `Analysis` tab renders the current `analysis.md` from the backend and can edit/save it.
+13. The `Analysis` tab can generate a structured paper analysis from local paper materials.
+14. `Similar` ranks other papers by shared tags.
 
 ## Import Flow
 
