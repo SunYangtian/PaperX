@@ -142,6 +142,32 @@ elif [[ -f .env ]]; then
   echo "Using existing local .env"
 fi
 
+display_host="${HOST:-127.0.0.1}"
+display_port="${PORT:-8000}"
+if [[ -f .env ]]; then
+  while IFS= read -r line || [[ -n "${line}" ]]; do
+    if [[ "${line}" == export" "* ]]; then
+      line="${line#export }"
+      line="${line#"${line%%[![:space:]]*}"}"
+    fi
+    [[ -z "${line}" || "${line}" == \#* || "${line}" != *=* ]] && continue
+    key="${line%%=*}"
+    value="${line#*=}"
+    if [[ ${#value} -ge 2 ]]; then
+      first="${value:0:1}"
+      last="${value: -1}"
+      if [[ "${first}" == "${last}" && ( "${first}" == "'" || "${first}" == '"' ) ]]; then
+        value="${value:1:${#value}-2}"
+      fi
+    fi
+    if [[ "${key}" == "HOST" && -z "${HOST+x}" ]]; then
+      display_host="${value}"
+    elif [[ "${key}" == "PORT" && -z "${PORT+x}" ]]; then
+      display_port="${value}"
+    fi
+  done < .env
+fi
+
 cat <<EOF
 
 PaperX is ready.
@@ -151,7 +177,7 @@ Next steps:
   2. Start the server:
        ./scripts/run.sh
   3. Open:
-       http://127.0.0.1:${PORT:-8000}
+       http://${display_host}:${display_port}
 
 EOF
 

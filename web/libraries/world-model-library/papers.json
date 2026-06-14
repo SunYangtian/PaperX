@@ -1,5 +1,45 @@
 [
   {
+    "slug": "ee229e3e8a919bfa",
+    "hash": "ee229e3e8a919bfa",
+    "library": "world-model-library",
+    "title": "JRM: Joint Reconstruction Model for Multiple Objects without Alignment",
+    "arxiv": "",
+    "pdf": "../papers/pdfs/Wu_JRM_Joint_Reconstruction_Model_for_Multiple_Objects_without_Alignment_CVPR_2026_paper.pdf",
+    "page": "libraries/world-model-library/papers/ee229e3e8a919bfa/index.html",
+    "status": "imported",
+    "tags": [
+      "video",
+      "interactive",
+      "dataset",
+      "benchmark"
+    ],
+    "updated": "2026-06-14",
+    "summary": "Imported from a user-provided PDF or arXiv URL.",
+    "source_url": "https://openaccess.thecvf.com/content/CVPR2026/papers/Wu_JRM_Joint_Reconstruction_Model_for_Multiple_Objects_without_Alignment_CVPR_2026_paper.pdf",
+    "pdf_url": "https://openaccess.thecvf.com/content/CVPR2026/papers/Wu_JRM_Joint_Reconstruction_Model_for_Multiple_Objects_without_Alignment_CVPR_2026_paper.pdf"
+  },
+  {
+    "slug": "5b3d3f36094d1868",
+    "hash": "5b3d3f36094d1868",
+    "library": "world-model-library",
+    "title": "Surflo: Consistent 3D Surface Flow Model with Global State",
+    "arxiv": "2606.13644",
+    "pdf": "../papers/pdfs/2606.13644.pdf",
+    "page": "libraries/world-model-library/papers/5b3d3f36094d1868/index.html",
+    "status": "imported",
+    "tags": [
+      "memory",
+      "video",
+      "dataset",
+      "benchmark"
+    ],
+    "updated": "2026-06-14",
+    "summary": "Imported from a user-provided PDF or arXiv URL.",
+    "source_url": "https://arxiv.org/abs/2606.13644",
+    "pdf_url": "https://arxiv.org/pdf/2606.13644.pdf"
+  },
+  {
     "slug": "926522b8c9c6b497",
     "hash": "926522b8c9c6b497",
     "library": "world-model-library",

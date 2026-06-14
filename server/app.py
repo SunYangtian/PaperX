@@ -922,6 +922,8 @@ def build_prompt(paper: dict[str, Any], messages: list[dict[str, Any]], chunks: 
 - 优先依据给定材料回答；材料不足时明确说明。
 - 用中文回答，保留必要英文术语。
 - 分析方法、实验、贡献或局限时给出结构化结论。
+- 数学变量和公式必须使用 LaTeX math delimiter：行内公式用 `$...$`，独立公式用 `$$...$$`。
+- 不要把数学变量或公式放进反引号、代码块、```text```、```math``` 或 ```latex``` 中。
 
 最近对话：
 {conversation}
@@ -1123,6 +1125,20 @@ def last_user_question(messages: list[dict[str, Any]], before_index: int | None 
     return ""
 
 
+def trim_incomplete_tail(content: str) -> str:
+    trimmed = str(content or "").rstrip()
+
+    fence_matches = list(re.finditer(r"(?m)^```", trimmed))
+    if len(fence_matches) % 2 == 1:
+        return trimmed[: fence_matches[-1].start()].rstrip()
+
+    display_matches = list(re.finditer(r"(?m)^\s*\$\$\s*$", trimmed))
+    if len(display_matches) % 2 == 1:
+        return trimmed[: display_matches[-1].start()].rstrip()
+
+    return trimmed
+
+
 def analysis_path_for_slug(slug: str, library: str = DEFAULT_LIBRARY) -> Path:
     return paper_dir_for_slug(slug, library) / "analysis.md"
 
@@ -1210,6 +1226,8 @@ def build_analysis_prompt(paper: dict[str, Any], source_text: str) -> str:
 - Conclusion、limitation 和 relation to other work 合并为一个部分。
 - 尽量写成稳定笔记，而不是对话口吻。
 - 每个小节最多 3-5 条 bullet 或短段落，避免展开背景常识。
+- 数学变量和公式必须使用 LaTeX math delimiter：行内公式用 `$...$`，独立公式用 `$$...$$`。
+- 不要把数学变量或公式放进反引号、代码块、```text```、```math``` 或 ```latex``` 中。
 - 对关键判断、方法细节、实验结论和数字结果，尽量在句末标注来源位置，格式如 `（Section 3, p.4）`、`（Fig. 2, p.3）`、`（Table 1, p.6）`。
 - 来源引用不需要逐句标注；每个小节给出 1-2 个最关键来源即可。
 - 如果依据来自图或表，优先引用 Fig./Table 编号；如果只能定位到页，则引用页码；如果材料中没有明确来源，不要伪造 Section/Fig/Table 编号。
@@ -1681,7 +1699,13 @@ def chat_api():
             return jsonify({"error": "continue_message_index must point to an assistant message"}), 400
 
         question = last_user_question(saved_messages, continue_index) or "继续生成"
-        continue_prompt = new_message or "请从上一条 assistant 回答被截断的位置继续生成，不要重复已经写过的内容。"
+        existing_content = str(target.get("content") or "")
+        clean_content = trim_incomplete_tail(existing_content)
+        target["content"] = clean_content
+        continue_prompt = new_message or (
+            "请从上一条 assistant 回答被截断的位置继续生成，不要重复已经写过的内容。"
+            "请确保续写内容中的 Markdown 和 LaTeX 分隔符成对闭合。"
+        )
         prompt_messages = saved_messages + [chat_message("user", continue_prompt)]
         chunks = retrieve(library, slug, question)
         prompt = build_prompt(paper, prompt_messages, chunks)
@@ -1699,7 +1723,7 @@ def chat_api():
             answer = fallback_answer(question, chunks, str(exc))
             mode = "local"
 
-        target["content"] = f"{target.get('content', '').rstrip()}\n\n{answer}".strip()
+        target["content"] = f"{clean_content}\n\n{answer}".strip()
         target["sources"] = (target.get("sources") or []) + source_payload(chunks)
         target["incomplete"] = incomplete
         target["incomplete_reason"] = incomplete_reason

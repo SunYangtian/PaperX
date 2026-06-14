@@ -12,7 +12,7 @@ From a fresh checkout:
 ./install.sh
 ```
 
-The installer will ask for `OPENAI_BASE_URL`, `OPENAI_MODEL`, and `OPENAI_API_KEY` when no local `.env` file exists. Open `http://127.0.0.1:8000` after the server starts.
+The installer will ask for runtime settings such as `OPENAI_BASE_URL`, `OPENAI_MODEL`, `OPENAI_API_KEY`, `HOST`, and `PORT` when no local `.env` file exists. After the server starts, open the URL printed by the installer. The port is controlled by `PORT` in `.env`; for server access, set `HOST=0.0.0.0` and open `http://<server-ip>:${PORT}`.
 
 ## Docs
 

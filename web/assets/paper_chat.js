@@ -938,7 +938,7 @@
     setBusy(true);
     const pending = createPendingMessage();
     const messageIndex = state.messages.indexOf(message);
-    const continuePrompt = "请从上一条 assistant 回答被截断的位置继续生成，不要重复已经写过的内容。";
+    const continuePrompt = "请从上一条 assistant 回答被截断的位置继续生成，不要重复已经写过的内容。请确保续写内容中的 Markdown 和 LaTeX 分隔符成对闭合。";
 
     try {
       const response = await fetch("/api/chat", {
