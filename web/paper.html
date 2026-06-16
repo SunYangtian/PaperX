@@ -6,7 +6,7 @@
   <title>PaperX</title>
   <link rel="icon" type="image/svg+xml" href="assets/Google_Scholar_logo.svg">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
-  <link rel="stylesheet" href="assets/style.css?v=20260603-qa-scroll-2">
+  <link rel="stylesheet" href="assets/style.css?v=20260617-comparison-dropdown">
 </head>
 <body class="paper-workspace">
   <header class="workspace-header sr-only">
@@ -44,6 +44,7 @@
           <button class="tab-button active" type="button" data-tab="assistant">Assistant</button>
           <button class="tab-button" type="button" data-tab="analysis">Analysis</button>
           <button class="tab-button" type="button" data-tab="similar">Similar</button>
+          <button class="tab-button" type="button" data-tab="comparison">Compare</button>
         </div>
 
         <section class="tab-panel active" id="assistantPanel" data-panel="assistant">
@@ -95,12 +96,33 @@
           </div>
           <div id="similarList" class="scroll-list"></div>
         </section>
+
+        <section class="tab-panel" id="comparisonPanel" data-panel="comparison">
+          <div class="panel-head">
+            <div>
+              <strong>Comparison</strong>
+              <div id="comparisonStatus" class="note">选择论文后生成对比分析</div>
+            </div>
+            <div class="panel-actions">
+              <button id="comparisonClearButton" class="button slim" type="button">Clear</button>
+              <button id="comparisonGenerateButton" class="button slim primary" type="button">Generate</button>
+            </div>
+          </div>
+          <div class="comparison-controls">
+            <div id="comparisonSelected" class="comparison-selected" aria-live="polite"></div>
+            <div id="comparisonSearchWrap" class="comparison-search-wrap">
+              <input id="comparisonSearch" class="comparison-search" type="search" placeholder="Search papers" autocomplete="off">
+              <div id="comparisonList" class="comparison-list" hidden></div>
+            </div>
+          </div>
+          <div id="comparisonResult" class="analysis-view comparison-result">No comparison yet.</div>
+        </section>
       </aside>
     </section>
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/markdown-it@14.1.0/dist/markdown-it.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
-  <script src="assets/paper_chat.js?v=20260610-lazy-pdf"></script>
+  <script src="assets/paper_chat.js?v=20260617-panel-width"></script>
 </body>
 </html>

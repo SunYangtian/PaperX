@@ -58,6 +58,14 @@ For slow paper downloads on a server, configure `http_proxy` and `https_proxy` i
 | `ANALYSIS_SOURCE_CHAR_LIMIT` | Maximum extracted paper text characters sent to structured analysis generation. |
 | `ANALYSIS_MAX_OUTPUT_TOKENS` | Output budget for generated structured analysis. |
 | `ANALYSIS_TIMEOUT_SECONDS` | Timeout for structured analysis generation. |
+| `TAG_MODEL` | Optional model override for automatic paper tag generation. Defaults to `OPENAI_MODEL`. |
+| `TAG_SOURCE_CHAR_LIMIT` | Maximum extracted paper text characters sent to tag generation. |
+| `TAG_MAX_OUTPUT_TOKENS` | Output budget for generated tag lists. |
+| `TAG_TIMEOUT_SECONDS` | Timeout for tag generation calls. |
+| `COMPARISON_PER_PAPER_CHAR_LIMIT` | Maximum extracted text characters sent for each paper in comparison generation. |
+| `COMPARISON_MAX_PAPERS` | Maximum number of additional papers selectable for one comparison. |
+| `COMPARISON_MAX_OUTPUT_TOKENS` | Output budget for generated comparison analysis. |
+| `COMPARISON_TIMEOUT_SECONDS` | Timeout for comparison generation calls. |
 | `HOST` | Host/interface used by `scripts/run.sh`. Use `127.0.0.1` for local-only access or `0.0.0.0` for server access. |
 | `PORT` | Port used by `scripts/run.sh`. |
 | `PAPERX_ACCESS_PASSWORD` | Optional password required before accessing PaperX. Leave blank to disable app-level login. |

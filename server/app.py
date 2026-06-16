@@ -46,6 +46,65 @@ AVAILABLE_CHAT_MODELS = {
     "kimi-k2.6",
     "minimax-m2.7",
 }
+TAG_VOCABULARY = (
+    "action control",
+    "autoregressive generation",
+    "benchmarking",
+    "camera control",
+    "camera pose estimation",
+    "controllable video generation",
+    "dataset construction",
+    "depth estimation",
+    "diffusion distillation",
+    "diffusion models",
+    "embodied AI",
+    "Gaussian splatting",
+    "language-conditioned control",
+    "latent actions",
+    "long-horizon generation",
+    "memory mechanisms",
+    "motion prediction",
+    "multi-view consistency",
+    "NeRF",
+    "object reconstruction",
+    "panoramic video",
+    "planning",
+    "point tracking",
+    "policy learning",
+    "real-time generation",
+    "representation learning",
+    "robot navigation",
+    "robotic manipulation",
+    "scene representation",
+    "simulation",
+    "spatial memory",
+    "surface modeling",
+    "trajectory generation",
+    "view synthesis",
+    "video prediction",
+    "visual navigation",
+    "world model adaptation",
+    "3D reconstruction",
+    "3D scene editing",
+    "4D reconstruction",
+)
+GENERIC_TAGS = {
+    "ai",
+    "artificial intelligence",
+    "benchmark",
+    "dataset",
+    "deep learning",
+    "interactive",
+    "machine learning",
+    "memory",
+    "method",
+    "model",
+    "neural network",
+    "paper",
+    "research paper",
+    "video",
+    "world model",
+}
 
 
 def strip_env_quotes(value: str) -> str:
@@ -324,6 +383,15 @@ def analysis_runtime_config() -> dict[str, int]:
     }
 
 
+def comparison_runtime_config() -> dict[str, int]:
+    return {
+        "per_paper_char_limit": int(os.environ.get("COMPARISON_PER_PAPER_CHAR_LIMIT") or 12000),
+        "max_papers": int(os.environ.get("COMPARISON_MAX_PAPERS") or 5),
+        "max_output_tokens": int(os.environ.get("COMPARISON_MAX_OUTPUT_TOKENS") or 3000),
+        "timeout_seconds": int(os.environ.get("COMPARISON_TIMEOUT_SECONDS") or 240),
+    }
+
+
 def normalize_library_id(value: str = "") -> str:
     library = str(value or DEFAULT_LIBRARY).strip() or DEFAULT_LIBRARY
     if not re.fullmatch(r"[a-z0-9][a-z0-9_-]{0,63}", library):
@@ -361,12 +429,18 @@ def library_ids() -> list[str]:
     return sorted(ids)
 
 
-@lru_cache(maxsize=32)
 def load_papers(library: str = DEFAULT_LIBRARY) -> list[dict[str, Any]]:
     path = library_papers_json(library)
     if not path.exists():
         return []
     return json.loads(read_text(path))
+
+
+def clear_load_papers_cache() -> None:
+    return None
+
+
+load_papers.cache_clear = clear_load_papers_cache  # type: ignore[attr-defined]
 
 
 def save_papers(papers: list[dict[str, Any]], library: str = DEFAULT_LIBRARY) -> None:
@@ -748,7 +822,15 @@ def extract_pdf_assets(pdf_path: Path, paper_dir: Path) -> None:
     write_text(extracted / "full_text.txt", "\n\n".join(full_text_parts).strip() + "\n")
 
 
-def infer_tags(title: str, full_text: str) -> list[str]:
+def tag_runtime_config() -> dict[str, int]:
+    return {
+        "source_char_limit": int(os.environ.get("TAG_SOURCE_CHAR_LIMIT") or 18000),
+        "max_output_tokens": int(os.environ.get("TAG_MAX_OUTPUT_TOKENS") or 300),
+        "timeout_seconds": int(os.environ.get("TAG_TIMEOUT_SECONDS") or 120),
+    }
+
+
+def keyword_infer_tags(title: str, full_text: str) -> list[str]:
     text = (title + " " + full_text).lower()
     candidates = [
         ("world model", "world model"),
@@ -765,6 +847,130 @@ def infer_tags(title: str, full_text: str) -> list[str]:
     ]
     tags = [label for needle, label in candidates if needle in text]
     return tags[:4] or ["imported"]
+
+
+def build_tag_prompt(title: str, source_text: str) -> str:
+    vocabulary = "\n".join(f"- {tag}" for tag in TAG_VOCABULARY)
+    return f"""You are tagging a research paper for a local paper library recommendation system.
+
+Task:
+- Generate 3-5 concise English tags that describe the paper's core technical topic.
+- Prefer tags from the controlled vocabulary below so related papers can share exact labels.
+- You may add at most one custom tag if the vocabulary misses an important central topic.
+- Avoid generic standalone tags such as "paper", "model", "video", "dataset", "benchmark", "memory", "interactive", or "world model".
+- Ignore references and incidental mentions; focus on title, abstract, introduction, method, and conclusion.
+- Return only a JSON array of strings. No markdown, no explanation.
+
+Controlled vocabulary:
+{vocabulary}
+
+Paper title:
+{title}
+
+Paper text:
+{source_text}
+"""
+
+
+def normalize_model_tags(raw_tags: Any, limit: int = 5) -> list[str]:
+    if not isinstance(raw_tags, list):
+        return []
+
+    canonical = {tag.lower(): tag for tag in TAG_VOCABULARY}
+    tags: list[str] = []
+    seen: set[str] = set()
+    for raw_tag in raw_tags:
+        tag = str(raw_tag or "").strip()
+        tag = re.sub(r"^\s*(?:[-*#]+|\d+[.)])\s*", "", tag).strip()
+        tag = tag.strip("`'\".,;:[](){}")
+        tag = re.sub(r"\s+", " ", tag)
+        if not tag or len(tag) > 64:
+            continue
+        lower = tag.lower()
+        if lower in GENERIC_TAGS:
+            continue
+        tag = canonical.get(lower, tag)
+        dedupe_key = tag.lower()
+        if dedupe_key in seen:
+            continue
+        tags.append(tag)
+        seen.add(dedupe_key)
+        if len(tags) >= limit:
+            break
+    return tags
+
+
+def parse_model_tags(answer: str) -> list[str]:
+    text = str(answer or "").strip()
+    if not text:
+        return []
+
+    fence_match = re.search(r"```(?:json)?\s*(.*?)```", text, flags=re.DOTALL | re.IGNORECASE)
+    if fence_match:
+        text = fence_match.group(1).strip()
+
+    candidates = [text]
+    array_match = re.search(r"\[[\s\S]*\]", text)
+    if array_match:
+        candidates.append(array_match.group(0))
+    object_match = re.search(r"\{[\s\S]*\}", text)
+    if object_match:
+        candidates.append(object_match.group(0))
+
+    for candidate in candidates:
+        try:
+            parsed = json.loads(candidate)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(parsed, dict):
+            parsed = parsed.get("tags") or parsed.get("labels") or []
+        tags = normalize_model_tags(parsed)
+        if tags:
+            return tags
+    return []
+
+
+def generate_model_tags(title: str, source_text: str) -> list[str]:
+    runtime = tag_runtime_config()
+    source = trim_references_section(str(source_text or ""))
+    source_limits = [runtime["source_char_limit"]]
+    for fallback_limit in (8000, 3000, 0):
+        if fallback_limit not in source_limits and len(source) > fallback_limit:
+            source_limits.append(fallback_limit)
+
+    last_error = ""
+    for source_limit in source_limits:
+        compact_source = source[:source_limit] if source_limit else ""
+        prompt = build_tag_prompt(title, compact_source)
+        try:
+            result = call_openai(
+                prompt,
+                os.environ.get("TAG_MODEL", ""),
+                max_output_tokens=runtime["max_output_tokens"],
+                timeout_seconds=runtime["timeout_seconds"],
+            )
+        except RuntimeError as exc:
+            last_error = str(exc)
+            if "is not configured" in last_error:
+                raise
+            continue
+        except Exception as exc:
+            last_error = str(exc)
+            continue
+
+        tags = parse_model_tags(result["answer"])
+        if tags:
+            return tags
+        last_error = "tag model response did not contain a JSON tag list"
+
+    raise RuntimeError(last_error or "failed to generate tags")
+
+
+def infer_tags(title: str, full_text: str) -> list[str]:
+    try:
+        return generate_model_tags(title, full_text)
+    except Exception:
+        return keyword_infer_tags(title, full_text)
 
 
 def write_paper_index(paper_dir: Path, title: str, pdf_name: str, slug: str, library: str = DEFAULT_LIBRARY) -> None:
@@ -1143,6 +1349,10 @@ def analysis_path_for_slug(slug: str, library: str = DEFAULT_LIBRARY) -> Path:
     return paper_dir_for_slug(slug, library) / "analysis.md"
 
 
+def comparison_path_for_slug(slug: str, library: str = DEFAULT_LIBRARY) -> Path:
+    return paper_dir_for_slug(slug, library) / "comparison.md"
+
+
 def ensure_analysis_file(paper: dict[str, Any], library: str = DEFAULT_LIBRARY) -> Path:
     slug = str(paper.get("slug") or "")
     path = analysis_path_for_slug(slug, library)
@@ -1174,6 +1384,34 @@ def append_markdown_section(content: str, heading: str, addition: str) -> str:
     before = normalized[:insert_at].rstrip()
     after = normalized[insert_at:].lstrip()
     return f"{before}\n\n{addition.strip()}\n\n{after}\n"
+
+
+def append_comparison_document(
+    current_paper: dict[str, Any],
+    comparison_papers: list[dict[str, Any]],
+    answer: str,
+    library: str = DEFAULT_LIBRARY,
+) -> tuple[Path, str]:
+    slug = str(current_paper.get("slug") or "")
+    path = comparison_path_for_slug(slug, library)
+    title = str(current_paper.get("title") or slug)
+    existing = read_text(path).rstrip() if path.exists() else ""
+    paper_lines = [f"- Current: {title} (`{slug}`)"]
+    for paper in comparison_papers:
+        paper_slug = str(paper.get("slug") or "")
+        paper_title = str(paper.get("title") or paper_slug)
+        paper_lines.append(f"- Compared: {paper_title} (`{paper_slug}`)")
+    paper_list = "\n".join(paper_lines)
+
+    entry = (
+        "### Papers\n\n"
+        f"{paper_list}\n\n"
+        "### Result\n\n"
+        f"{answer.strip()}\n"
+    )
+    updated = f"{existing}\n\n{entry}".lstrip()
+    write_text(path, updated)
+    return path, updated
 
 
 def trim_references_section(content: str) -> str:
@@ -1243,6 +1481,69 @@ def build_analysis_prompt(paper: dict[str, Any], source_text: str) -> str:
 
 论文材料：
 {source_text}
+"""
+
+
+def comparison_paper_block(index: int, paper: dict[str, Any], source_text: str) -> str:
+    tags = ", ".join(str(tag) for tag in paper.get("tags", []) if str(tag).strip())
+    arxiv = str(paper.get("arxiv") or "").strip()
+    metadata = [
+        f"Title: {paper.get('title', '')}",
+        f"Slug: {paper.get('slug', '')}",
+        f"arXiv: {arxiv}" if arxiv else "",
+        f"Tags: {tags}" if tags else "",
+    ]
+    compact_metadata = "\n".join(item for item in metadata if item)
+    material = source_text.strip() or "No extracted paper text is available; use only metadata and explicitly mark uncertainty."
+    return f"""### Paper {index}
+{compact_metadata}
+
+Material:
+{material}
+"""
+
+
+def build_comparison_prompt(
+    current_paper: dict[str, Any],
+    comparison_papers: list[dict[str, Any]],
+    paper_sources: list[str],
+) -> str:
+    all_papers = [current_paper] + comparison_papers
+    blocks = "\n\n".join(
+        comparison_paper_block(index, paper, source)
+        for index, (paper, source) in enumerate(zip(all_papers, paper_sources), start=1)
+    )
+    compared_titles = "\n".join(
+        f"- Paper {index}: {paper.get('title', '')}"
+        for index, paper in enumerate(all_papers, start=1)
+    )
+    return f"""你是一个严谨的论文对比分析助手。请基于给定材料，对当前论文和用户选择的论文做横向比较。
+
+当前论文是 Paper 1。其余论文是用户从论文库中选择的对比对象。
+
+待比较论文：
+{compared_titles}
+
+输出要求：
+- 用中文回答，保留必要英文术语。
+- 只基于给定材料；材料不足时明确写“材料不足，无法确定”，不要编造。
+- 重点比较研究问题、核心假设、方法设计、训练/数据、实验证据、适用场景和局限。
+- 先给一个简洁结论，再给结构化对比。
+- 包含一个 Markdown 表格，列出每篇论文的 problem / method / evidence / strength / limitation。
+- 最后给出“如何一起阅读这些论文”的建议，说明它们的互补关系和差异。
+- 不要输出参考材料列表。
+- 数学变量和公式必须使用 LaTeX math delimiter：行内公式用 `$...$`，独立公式用 `$$...$$`。
+- 不要把数学变量或公式放进反引号、代码块、```text```、```math``` 或 ```latex``` 中。
+
+建议结构：
+## High-Level Takeaway
+## Comparison Table
+## Key Differences
+## Complementarity
+## Reading / Usage Suggestions
+
+论文材料：
+{blocks}
 """
 
 
@@ -1321,6 +1622,89 @@ def import_pdf_bytes(
         raise
 
     return new_paper
+
+
+def refresh_tags_for_library(
+    library: str = DEFAULT_LIBRARY,
+    *,
+    allow_keyword_fallback: bool = False,
+    progress: bool = False,
+) -> dict[str, Any]:
+    library = normalize_library_id(library)
+    papers = list(load_papers(library))
+    tag_runtime = tag_runtime_config()
+    changed = False
+    updated = 0
+    failed = 0
+    results: list[dict[str, Any]] = []
+
+    for index, paper in enumerate(papers, start=1):
+        slug = str(paper.get("slug") or "")
+        title = str(paper.get("title") or slug)
+        source_text = analysis_source_text(slug, library, limit=tag_runtime["source_char_limit"])
+        if not source_text.strip():
+            source_text = str(paper.get("summary") or "")
+
+        if progress:
+            print(f"[{library}] {index}/{len(papers)} tagging {slug or title[:40]} ...", flush=True)
+
+        try:
+            tags = generate_model_tags(title, source_text)
+            mode = "model"
+            error = ""
+        except Exception as exc:
+            if not allow_keyword_fallback:
+                failed += 1
+                error = str(exc)
+                results.append(
+                    {
+                        "slug": slug,
+                        "title": title,
+                        "updated": False,
+                        "mode": "failed",
+                        "error": error,
+                    }
+                )
+                if progress:
+                    print(f"  failed: {error}", flush=True)
+                continue
+            tags = keyword_infer_tags(title, source_text)
+            mode = "keyword"
+            error = str(exc)
+
+        old_tags = [str(tag) for tag in paper.get("tags", []) if str(tag).strip()]
+        did_update = old_tags != tags
+        if did_update:
+            paper["tags"] = tags
+            changed = True
+            updated += 1
+
+        results.append(
+            {
+                "slug": slug,
+                "title": title,
+                "updated": did_update,
+                "mode": mode,
+                "old_tags": old_tags,
+                "tags": tags,
+                "error": error,
+            }
+        )
+        if progress:
+            status = "updated" if did_update else "unchanged"
+            print(f"  {status}: {', '.join(tags)}", flush=True)
+
+    if changed:
+        save_papers(papers, library)
+
+    return {
+        "library": library,
+        "total": len(papers),
+        "updated": updated,
+        "failed": failed,
+        "changed": changed,
+        "results": results,
+    }
 
 
 @app.post("/api/import")
@@ -1465,6 +1849,22 @@ def paper_analysis_api(slug: str):
     return jsonify({"content": read_text(path)})
 
 
+@app.get("/api/papers/<slug>/comparison")
+def paper_comparison_api(slug: str):
+    library = request_library()
+    paper = get_paper(slug, library)
+    if not paper:
+        return jsonify({"error": "paper not found"}), 404
+
+    path = comparison_path_for_slug(slug, library)
+    return jsonify(
+        {
+            "content": read_text(path) if path.exists() else "",
+            "file": "comparison.md",
+        }
+    )
+
+
 @app.get("/api/papers/<slug>/conversation")
 def paper_conversation_api(slug: str):
     library = request_library()
@@ -1578,6 +1978,95 @@ def generate_paper_analysis(slug: str):
             "model": selected_model or model_runtime_config()["model"],
             "usage": result.get("usage") or {},
             "analysis_runtime": analysis_runtime,
+        }
+    )
+
+
+@app.post("/api/papers/<slug>/compare")
+def compare_papers_api(slug: str):
+    payload = request.get_json(silent=True) or {}
+    library = request_library(payload)
+    current_paper = get_paper(slug, library)
+    if not current_paper:
+        return jsonify({"error": "paper not found"}), 404
+
+    selected_model = str(payload.get("model", "")).strip()
+    if selected_model and selected_model not in AVAILABLE_CHAT_MODELS:
+        return jsonify({"error": "unsupported model"}), 400
+
+    raw_slugs = payload.get("compare_slugs") or payload.get("slugs") or []
+    if not isinstance(raw_slugs, list):
+        return jsonify({"error": "compare_slugs must be a list"}), 400
+
+    compare_slugs: list[str] = []
+    seen_slugs = {slug}
+    for raw_slug in raw_slugs:
+        compare_slug = str(raw_slug or "").strip()
+        if not compare_slug or compare_slug in seen_slugs:
+            continue
+        compare_slugs.append(compare_slug)
+        seen_slugs.add(compare_slug)
+
+    comparison_runtime = comparison_runtime_config()
+    max_papers = max(1, comparison_runtime["max_papers"])
+    if not compare_slugs:
+        return jsonify({"error": "at least one comparison paper is required"}), 400
+    if len(compare_slugs) > max_papers:
+        return jsonify({"error": f"at most {max_papers} comparison papers are allowed"}), 400
+
+    papers_by_slug = {str(paper.get("slug") or ""): paper for paper in load_papers(library)}
+    comparison_papers: list[dict[str, Any]] = []
+    missing_slugs: list[str] = []
+    for compare_slug in compare_slugs:
+        paper = papers_by_slug.get(compare_slug)
+        if paper:
+            comparison_papers.append(paper)
+        else:
+            missing_slugs.append(compare_slug)
+    if missing_slugs:
+        return jsonify({"error": "comparison paper not found", "missing_slugs": missing_slugs}), 404
+
+    per_paper_limit = max(1000, comparison_runtime["per_paper_char_limit"])
+    all_papers = [current_paper] + comparison_papers
+    paper_sources = [
+        analysis_source_text(str(paper.get("slug") or ""), library, limit=per_paper_limit)
+        for paper in all_papers
+    ]
+
+    try:
+        result = call_openai(
+            build_comparison_prompt(current_paper, comparison_papers, paper_sources),
+            selected_model,
+            max_output_tokens=comparison_runtime["max_output_tokens"],
+            timeout_seconds=comparison_runtime["timeout_seconds"],
+        )
+    except (RuntimeError, TimeoutError, socket.timeout, urllib.error.URLError, urllib.error.HTTPError) as exc:
+        return jsonify({"error": f"failed to generate comparison: {exc}"}), 502
+
+    comparison_path, comparison_content = append_comparison_document(
+        current_paper,
+        comparison_papers,
+        result["answer"],
+        library,
+    )
+
+    return jsonify(
+        {
+            "answer": result["answer"],
+            "content": comparison_content,
+            "file": comparison_path.name,
+            "model": selected_model or model_runtime_config()["model"],
+            "usage": result.get("usage") or {},
+            "comparison_runtime": comparison_runtime,
+            "papers": [
+                {
+                    "slug": str(paper.get("slug") or ""),
+                    "title": str(paper.get("title") or ""),
+                    "arxiv": str(paper.get("arxiv") or ""),
+                    "tags": paper.get("tags") or [],
+                }
+                for paper in all_papers
+            ],
         }
     )
 
@@ -1847,8 +2336,46 @@ def web_files(filename: str):
     return send_from_directory(WEB_DIR, filename)
 
 
-if __name__ == "__main__":
+def run_server() -> None:
     host = os.environ.get("HOST", "127.0.0.1")
     port = int(os.environ.get("PORT", "8000"))
     debug = os.environ.get("FLASK_DEBUG", "").lower() in {"1", "true", "yes"}
     app.run(host=host, port=port, debug=debug, use_reloader=False)
+
+
+def main() -> None:
+    import argparse
+
+    parser = argparse.ArgumentParser(description="PaperX backend")
+    parser.add_argument("--refresh-tags", action="store_true", help="regenerate paper tags with the configured model")
+    parser.add_argument("--library", default=DEFAULT_LIBRARY, help="library id to refresh")
+    parser.add_argument("--all-libraries", action="store_true", help="refresh tags for all libraries")
+    parser.add_argument(
+        "--allow-keyword-fallback",
+        action="store_true",
+        help="overwrite failed model tags with the old keyword-based fallback",
+    )
+    args = parser.parse_args()
+
+    if args.refresh_tags:
+        libraries = library_ids() if args.all_libraries else [normalize_library_id(args.library)]
+        total_failed = 0
+        for library in libraries:
+            summary = refresh_tags_for_library(
+                library,
+                allow_keyword_fallback=args.allow_keyword_fallback,
+                progress=True,
+            )
+            total_failed += int(summary["failed"])
+            print(
+                f"[{library}] done: {summary['updated']} updated, "
+                f"{summary['failed']} failed, {summary['total']} total",
+                flush=True,
+            )
+        raise SystemExit(1 if total_failed else 0)
+
+    run_server()
+
+
+if __name__ == "__main__":
+    main()

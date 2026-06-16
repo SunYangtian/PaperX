@@ -5,6 +5,7 @@
   const DEFAULT_CHAT_MODEL = "gpt-5.5";
   const CHAT_MODEL_DEFAULT_VERSION = "20260612-gpt-5.5";
   const ACTIVE_LIBRARY_KEY = "paper-active-library";
+  const MAX_COMPARISON_PAPERS = 5;
   const params = new URLSearchParams(window.location.search);
   const slug = params.get("slug");
   const library = params.get("library") || window.localStorage.getItem(ACTIVE_LIBRARY_KEY) || "default";
@@ -15,6 +16,10 @@
     messages: [],
     analysisRaw: "",
     analysisEditing: false,
+    comparisonSelected: new Set(),
+    comparisonAnswer: "",
+    comparisonBusy: false,
+    comparisonDropdownOpen: false,
     sidePanelWidth: 430,
     resizing: false
   };
@@ -41,6 +46,14 @@
     model: document.getElementById("modelSelect"),
     send: document.getElementById("sendButton"),
     similarList: document.getElementById("similarList"),
+    comparisonStatus: document.getElementById("comparisonStatus"),
+    comparisonSelected: document.getElementById("comparisonSelected"),
+    comparisonSearchWrap: document.getElementById("comparisonSearchWrap"),
+    comparisonSearch: document.getElementById("comparisonSearch"),
+    comparisonList: document.getElementById("comparisonList"),
+    comparisonResult: document.getElementById("comparisonResult"),
+    comparisonGenerate: document.getElementById("comparisonGenerateButton"),
+    comparisonClear: document.getElementById("comparisonClearButton"),
     analysisContent: document.getElementById("analysisContent"),
     analysisStatus: document.getElementById("analysisStatus"),
     analysisEditor: document.getElementById("analysisEditor"),
@@ -480,11 +493,19 @@
     if (!Number.isFinite(value)) {
       return 430;
     }
-    return Math.min(700, Math.max(320, value));
+    return clampPanelWidth(value);
+  }
+
+  function maxPanelWidth() {
+    return Math.max(700, Math.floor(window.innerWidth * 0.72));
+  }
+
+  function clampPanelWidth(width) {
+    return Math.min(maxPanelWidth(), Math.max(320, width));
   }
 
   function applyPanelWidth(width) {
-    state.sidePanelWidth = Math.min(700, Math.max(320, width));
+    state.sidePanelWidth = clampPanelWidth(width);
     document.documentElement.style.setProperty("--side-panel-width", state.sidePanelWidth + "px");
     window.localStorage.setItem("paper-side-panel-width", String(state.sidePanelWidth));
   }
@@ -520,6 +541,7 @@
     };
 
     els.splitter.addEventListener("mousedown", startDrag);
+    window.addEventListener("resize", () => applyPanelWidth(state.sidePanelWidth));
     els.splitter.addEventListener("touchstart", (event) => {
       if (!event.touches || !event.touches[0]) {
         return;
@@ -597,11 +619,14 @@
     setPaperPdf(paper, { available: Boolean(paper.pdf), downloaded: false, checking: true });
 
     renderSimilarPapers(paper);
+    renderComparisonPicker();
     stopWheelPropagation(els.thread);
     stopWheelPropagation(els.analysisContent);
     stopWheelPropagation(els.analysisEditor);
+    stopWheelPropagation(els.comparisonList);
+    stopWheelPropagation(els.comparisonResult);
     renderConversation(await loadConversation());
-    const [paperStatus] = await Promise.all([loadContextStatus(slug), loadAnalysis(slug)]);
+    const [paperStatus] = await Promise.all([loadContextStatus(slug), loadAnalysis(slug), loadComparison(slug)]);
     if (paperStatus && paperStatus.paper) {
       state.paper = paperStatus.paper;
       setPaperPdf(paperStatus.paper, paperStatus.pdf_status || {});
@@ -658,10 +683,19 @@
         const overlap = (item.tags || []).filter((tag) => currentTags.has(tag.toLowerCase())).length;
         return { paper: item, score: overlap };
       })
+      .filter((item) => item.score > 0)
       .sort((a, b) => b.score - a.score || a.paper.title.localeCompare(b.paper.title))
       .slice(0, 6);
 
     els.similarList.textContent = "";
+    if (!scored.length) {
+      const empty = document.createElement("div");
+      empty.className = "note";
+      empty.textContent = "No papers with shared tags yet.";
+      els.similarList.appendChild(empty);
+      return;
+    }
+
     scored.forEach(({ paper: item, score }) => {
       const card = document.createElement("article");
       card.className = "tool-card";
@@ -686,6 +720,275 @@
       card.appendChild(chips);
       els.similarList.appendChild(card);
     });
+  }
+
+  function comparisonCandidates(query) {
+    const normalizedQuery = text(query).trim().toLowerCase();
+    const currentTags = new Set(((state.paper && state.paper.tags) || []).map((tag) => tag.toLowerCase()));
+    return state.papers
+      .filter((item) => item.slug !== slug)
+      .map((item) => {
+        const tags = Array.isArray(item.tags) ? item.tags : [];
+        const overlap = tags.filter((tag) => currentTags.has(tag.toLowerCase())).length;
+        return { paper: item, score: overlap };
+      })
+      .filter(({ paper: item }) => {
+        if (!normalizedQuery) {
+          return true;
+        }
+        const haystack = [item.title, item.arxiv, (item.tags || []).join(" ")]
+          .join(" ")
+          .toLowerCase();
+        return haystack.includes(normalizedQuery);
+      })
+      .sort((a, b) => b.score - a.score || a.paper.title.localeCompare(b.paper.title));
+  }
+
+  function updateComparisonStatus() {
+    const count = state.comparisonSelected.size;
+    if (state.comparisonBusy) {
+      els.comparisonStatus.textContent = "正在生成对比分析";
+    } else if (count) {
+      els.comparisonStatus.textContent = "已选择 " + count + "/" + MAX_COMPARISON_PAPERS + " 篇论文";
+    } else {
+      els.comparisonStatus.textContent = "选择论文后生成对比分析";
+    }
+    els.comparisonGenerate.disabled = state.comparisonBusy || count === 0;
+    els.comparisonClear.disabled = state.comparisonBusy || count === 0;
+  }
+
+  function renderComparisonResult(content) {
+    const value = text(content).trim();
+    els.comparisonResult.textContent = "";
+    if (!value) {
+      els.comparisonResult.textContent = "No comparison yet.";
+      return;
+    }
+    const body = document.createElement("div");
+    body.className = "message-body analysis-rich-text";
+    body.innerHTML = renderRichText(value);
+    els.comparisonResult.appendChild(body);
+  }
+
+  function comparisonPaperBySlug(selectedSlug) {
+    return state.papers.find((item) => item.slug === selectedSlug) || null;
+  }
+
+  function renderComparisonSelected() {
+    els.comparisonSelected.textContent = "";
+    Array.from(state.comparisonSelected).forEach((selectedSlug) => {
+      const paper = comparisonPaperBySlug(selectedSlug);
+      if (!paper) {
+        return;
+      }
+
+      const item = document.createElement("span");
+      item.className = "comparison-selected-item";
+
+      const title = document.createElement("span");
+      title.className = "comparison-selected-title";
+      title.textContent = paper.title;
+      title.title = paper.title;
+      item.appendChild(title);
+
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "comparison-remove";
+      remove.setAttribute("aria-label", "Remove " + paper.title);
+      remove.textContent = "×";
+      remove.disabled = Boolean(state.comparisonBusy);
+      remove.addEventListener("click", () => {
+        state.comparisonSelected.delete(selectedSlug);
+        renderComparisonPicker();
+      });
+      item.appendChild(remove);
+
+      els.comparisonSelected.appendChild(item);
+    });
+  }
+
+  function openComparisonDropdown() {
+    state.comparisonDropdownOpen = true;
+    renderComparisonPicker();
+  }
+
+  function closeComparisonDropdown() {
+    state.comparisonDropdownOpen = false;
+    els.comparisonList.hidden = true;
+  }
+
+  function renderComparisonPicker() {
+    const validSlugs = new Set(state.papers.map((item) => item.slug));
+    Array.from(state.comparisonSelected).forEach((selectedSlug) => {
+      if (!validSlugs.has(selectedSlug) || selectedSlug === slug) {
+        state.comparisonSelected.delete(selectedSlug);
+      }
+    });
+
+    renderComparisonSelected();
+    updateComparisonStatus();
+
+    if (!state.comparisonDropdownOpen || state.comparisonBusy) {
+      els.comparisonList.hidden = true;
+      return;
+    }
+
+    const candidates = comparisonCandidates(els.comparisonSearch.value)
+      .filter(({ paper: item }) => !state.comparisonSelected.has(item.slug))
+      .slice(0, 20);
+    els.comparisonList.textContent = "";
+    els.comparisonList.hidden = false;
+    if (!candidates.length) {
+      const empty = document.createElement("div");
+      empty.className = "note";
+      empty.textContent = "No matching papers.";
+      els.comparisonList.appendChild(empty);
+      return;
+    }
+
+    candidates.forEach(({ paper: item, score }) => {
+      const option = document.createElement("button");
+      option.type = "button";
+      option.className = "comparison-option";
+      option.addEventListener("click", () => {
+        if (state.comparisonSelected.size >= MAX_COMPARISON_PAPERS) {
+          window.alert("最多选择 " + MAX_COMPARISON_PAPERS + " 篇论文进行对比。");
+          return;
+        }
+        state.comparisonSelected.add(item.slug);
+        els.comparisonSearch.value = "";
+        state.comparisonDropdownOpen = true;
+        renderComparisonPicker();
+        els.comparisonSearch.focus();
+      });
+
+      const body = document.createElement("div");
+      const title = document.createElement("div");
+      title.className = "comparison-title";
+      title.textContent = item.title;
+      body.appendChild(title);
+
+      const meta = document.createElement("div");
+      meta.className = "note";
+      meta.textContent = [
+        item.arxiv ? "arXiv " + item.arxiv : "",
+        score ? score + " shared tag" + (score > 1 ? "s" : "") : ""
+      ].filter(Boolean).join(" · ");
+      body.appendChild(meta);
+
+      const chips = document.createElement("div");
+      chips.className = "chips compact-chips";
+      (item.tags || []).slice(0, 3).forEach((tag) => {
+        const chip = document.createElement("span");
+        chip.className = "chip";
+        chip.textContent = tag;
+        chips.appendChild(chip);
+      });
+      body.appendChild(chips);
+
+      option.appendChild(body);
+      els.comparisonList.appendChild(option);
+    });
+  }
+
+  function setComparisonBusy(isBusy) {
+    state.comparisonBusy = isBusy;
+    els.comparisonGenerate.textContent = isBusy ? "Generating" : "Generate";
+    els.comparisonSearch.disabled = isBusy;
+    els.comparisonList.querySelectorAll("button").forEach((button) => {
+      button.disabled = isBusy;
+    });
+    if (isBusy) {
+      closeComparisonDropdown();
+    }
+    updateComparisonStatus();
+  }
+
+  async function generateComparison() {
+    const compareSlugs = Array.from(state.comparisonSelected);
+    if (!compareSlugs.length) {
+      return;
+    }
+
+    setComparisonBusy(true);
+    els.comparisonResult.textContent = "Generating comparison...";
+    let finalStatus = "";
+    try {
+      const response = await fetch("/api/papers/" + encodeURIComponent(slug) + "/compare", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          library,
+          model: els.model.value,
+          compare_slugs: compareSlugs
+        })
+      });
+      if (!response.ok) {
+        throw await responseError(response, "comparison failed");
+      }
+      const data = await response.json();
+      state.comparisonAnswer = data.content || data.answer || "";
+      renderComparisonResult(state.comparisonAnswer);
+      finalStatus = (data.file || "comparison.md") + " 已更新";
+    } catch (error) {
+      state.comparisonAnswer = "";
+      els.comparisonResult.textContent = "Comparison failed: " + error.message;
+      finalStatus = "对比分析失败";
+    } finally {
+      setComparisonBusy(false);
+      if (finalStatus) {
+        els.comparisonStatus.textContent = finalStatus;
+      }
+    }
+  }
+
+  function clearComparison() {
+    state.comparisonSelected.clear();
+    renderComparisonPicker();
+  }
+
+  function setupComparison() {
+    const controls = els.comparisonSearchWrap.closest(".comparison-controls");
+    els.comparisonSearch.addEventListener("focus", () => openComparisonDropdown());
+    els.comparisonSearch.addEventListener("click", () => openComparisonDropdown());
+    els.comparisonSearch.addEventListener("input", () => openComparisonDropdown());
+    els.comparisonList.addEventListener("mousedown", (event) => {
+      event.preventDefault();
+    });
+    els.comparisonList.addEventListener("click", (event) => {
+      event.stopPropagation();
+    });
+    document.addEventListener("click", (event) => {
+      const path = typeof event.composedPath === "function" ? event.composedPath() : [];
+      if (!controls || controls.contains(event.target) || path.includes(controls)) {
+        return;
+      }
+      closeComparisonDropdown();
+    });
+    els.comparisonGenerate.addEventListener("click", () => generateComparison());
+    els.comparisonClear.addEventListener("click", () => clearComparison());
+    renderComparisonPicker();
+    updateComparisonStatus();
+  }
+
+  async function loadComparison(paperSlug) {
+    try {
+      const response = await fetch("/api/papers/" + encodeURIComponent(paperSlug) + "/comparison?library=" + encodeURIComponent(library), { cache: "no-cache" });
+      if (!response.ok) {
+        throw await responseError(response, "comparison unavailable");
+      }
+      const data = await response.json();
+      state.comparisonAnswer = data.content || "";
+      renderComparisonResult(state.comparisonAnswer);
+      if (state.comparisonAnswer.trim()) {
+        els.comparisonStatus.textContent = data.file || "comparison.md";
+      } else {
+        updateComparisonStatus();
+      }
+    } catch (error) {
+      els.comparisonResult.textContent = "Comparison file is unavailable: " + error.message;
+      els.comparisonStatus.textContent = "comparison.md unavailable";
+    }
   }
 
   async function loadAnalysis(paperSlug) {
@@ -1063,6 +1366,7 @@
   setupTabs();
   setupModelSelect();
   setupAnalysisEditor();
+  setupComparison();
   setupSplitter();
   loadPaper().catch((error) => {
     els.title.textContent = "无法打开文章";

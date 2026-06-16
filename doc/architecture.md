@@ -3,7 +3,7 @@
 ## Goal
 
 The web system provides an interactive paper reading workspace. When a user opens a paper from the web index, the browser shows a two-column layout: the PDF on the left and a paper-aware chat panel on the right.
-The right side now follows an alphaXiv-style tool strip with three tabs: `Assistant`, `Analysis`, and `Similar`.
+The right side now follows an alphaXiv-style tool strip with four tabs: `Assistant`, `Analysis`, `Similar`, and `Comparison`.
 
 ## Components
 
@@ -22,6 +22,7 @@ The right side now follows an alphaXiv-style tool strip with three tabs: `Assist
 Each paper keeps local analysis assets under `web/libraries/<library>/papers/<paper-hash>/`:
 
 - `analysis.md`: stable reading notes.
+- `comparison.md`: generated cross-paper comparison notes. New Comparison tab runs append to this file.
 - `conversation.json`: server-side assistant conversation state for the paper workspace.
 - `extracted/full_text.txt`: extracted full paper text.
 - `extracted/text_pages/page_*.txt`: page-level extracted text used for source labels and retrieval.
@@ -75,7 +76,10 @@ The server also maps:
 11. Each assistant answer exposes a control that can append the user question and assistant answer to the `QA` section in `analysis.md`.
 12. The `Analysis` tab renders the current `analysis.md` from the backend and can edit/save it.
 13. The `Analysis` tab can generate a structured paper analysis from local paper materials.
-14. `Similar` ranks other papers by shared tags.
+14. `Similar` ranks other papers by shared model-generated tags and hides papers with no shared tags.
+15. `Comparison` lets the user select other papers from the library and asks the configured model for a cross-paper comparison. The result is appended to `comparison.md` under the current paper directory.
+
+Comparison and structured analysis material is read from `extracted/full_text.txt` first, then `extracted/text_pages/page_*.txt`, and only falls back to `analysis.md` when extracted PDF text is unavailable.
 
 ## Import Flow
 
@@ -127,6 +131,14 @@ Environment variables:
 - `ANALYSIS_SOURCE_CHAR_LIMIT`: maximum paper text characters sent to analysis generation.
 - `ANALYSIS_MAX_OUTPUT_TOKENS`: analysis generation output budget.
 - `ANALYSIS_TIMEOUT_SECONDS`: analysis generation timeout.
+- `TAG_MODEL`: optional model override for automatic paper tag generation.
+- `TAG_SOURCE_CHAR_LIMIT`: maximum paper text characters sent to tag generation.
+- `TAG_MAX_OUTPUT_TOKENS`: tag generation output budget.
+- `TAG_TIMEOUT_SECONDS`: tag generation timeout.
+- `COMPARISON_PER_PAPER_CHAR_LIMIT`: maximum paper text characters sent per paper for comparison generation.
+- `COMPARISON_MAX_PAPERS`: maximum number of selected comparison papers.
+- `COMPARISON_MAX_OUTPUT_TOKENS`: comparison generation output budget.
+- `COMPARISON_TIMEOUT_SECONDS`: comparison generation timeout.
 - `HOST`: optional server bind host. Defaults to `127.0.0.1`.
 - `PORT`: optional server port. Defaults to `8000`.
 - `OPENAI_ENV_KEY`: optional advanced indirection for using another environment variable as the API key source.
